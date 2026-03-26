@@ -15,13 +15,17 @@ let currentMusic = null;
 let isMuted = false;
 
 function playMusic(track) {
+  if (currentMusic === track && !currentMusic.paused) return; // Already playing
   if (currentMusic && currentMusic !== track) {
     currentMusic.pause();
     currentMusic.currentTime = 0;
   }
   currentMusic = track;
-  if (!isMuted) {
-    track.play().catch(() => {}); // Ignore autoplay block
+  if (!isMuted && audioUnlocked) {
+    track.play().catch(() => {
+      // Retry once
+      setTimeout(() => track.play().catch(() => {}), 200);
+    });
   }
 }
 
@@ -47,14 +51,32 @@ function setVolume(val) {
   gameMusic.volume = v * 0.8;
 }
 
-// Start lobby music on first user interaction
-document.addEventListener('click', function startLobbyMusic() {
-  const lobbyScreen = document.getElementById('screen-lobby');
-  if (lobbyScreen && lobbyScreen.classList.contains('active')) {
-    playMusic(lobbyMusic);
-  }
-  document.removeEventListener('click', startLobbyMusic);
-}, { once: false });
+// Preload audio
+lobbyMusic.preload = 'auto';
+gameMusic.preload = 'auto';
+
+let audioUnlocked = false;
+
+// Splash screen dismissal — this is the user interaction that unlocks audio
+function dismissSplash() {
+  // Unlock audio context
+  audioUnlocked = true;
+
+  // Force play lobby music immediately on this user gesture
+  lobbyMusic.play().then(() => {
+    console.log('Lobby music started');
+  }).catch(e => {
+    console.log('Music play failed:', e);
+    // Retry after a tiny delay
+    setTimeout(() => lobbyMusic.play().catch(() => {}), 100);
+  });
+
+  // Switch to lobby screen
+  showScreen('lobby');
+}
+
+// Make dismissSplash available globally
+window.dismissSplash = dismissSplash;
 
 // ============================================================
 // CIRCULAR TIMER

@@ -13,8 +13,16 @@
 </head>
 <body class="host-body">
 
+  <!-- SPLASH: tap to start (enables audio) -->
+  <div id="screen-splash" class="screen active" onclick="dismissSplash()">
+    <div class="splash-container">
+      <img src="/assets/img/logo.png" alt="Quiflotz" class="splash-logo">
+      <div class="splash-text">לחץ להתחיל 💨</div>
+    </div>
+  </div>
+
   <!-- LOBBY -->
-  <div id="screen-lobby" class="screen active">
+  <div id="screen-lobby" class="screen">
     <div class="lobby-container">
       <img src="/assets/img/logo.png" alt="Quiflotz" class="game-logo-img">
       <div class="room-code-box">
