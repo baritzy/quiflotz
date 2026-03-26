@@ -136,18 +136,22 @@ body::before {
 }
 
 .room-code {
-  font-family: var(--font-display);
-  font-size: 6rem;
-  font-weight: 700;
+  font-family: 'Arial Black', 'Fredoka', sans-serif;
+  font-size: 5rem;
+  font-weight: 900;
   color: var(--neon-green);
-  letter-spacing: 15px;
-  text-shadow: 0 0 20px rgba(57, 255, 20, 0.5);
+  letter-spacing: 25px;
+  text-shadow: none;
   direction: ltr;
+  -webkit-text-stroke: 1px rgba(0,0,0,0.3);
 }
 
 .join-url {
-  font-size: 0.9rem;
-  color: var(--text-dim);
+  font-family: 'Arial', sans-serif;
+  font-size: 1.1rem;
+  color: var(--cyan);
+  font-weight: 700;
+  direction: ltr;
   margin-top: 10px;
 }
 
