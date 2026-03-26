@@ -93,6 +93,9 @@ io.on('connection', (socket) => {
 
     room.state = 'playing';
     room.mainRound++;
+    // Timers: 55s for rounds 1&2 (two prompts), 35s for round 3 (one prompt)
+    room.settings.writeTime = 55;
+    room.settings.finalWriteTime = 35;
     startSubRound(room, 1);
   });
 
@@ -183,9 +186,11 @@ io.on('connection', (socket) => {
     const submitted = room.finalAnswers.size;
     io.to(room.hostId).emit('writing-progress', { submitted, total: activePlayers.length });
 
+    // Round 3: wait for ALL players before starting vote
     if (submitted >= activePlayers.length) {
       clearTimeout(room.timer);
-      startFinalVoting(room);
+      // Brief pause so last player sees "submitted" screen
+      setTimeout(() => startFinalVoting(room), 1500);
     }
   });
 
@@ -297,12 +302,13 @@ function startSubRound(room, subRoundNum) {
     room.phase = 'final-write';
     engine.setupFinalRound(room, prompts);
 
+    const writeTime = room.settings.finalWriteTime || 35;
     const data = {
       mainRound: room.mainRound,
       subRound: 3,
       multiplier: 3,
       prompt: room.finalPrompt,
-      writeTime: room.settings.writeTime
+      writeTime
     };
 
     io.to(room.hostId).emit('final-round-start', data);
@@ -317,7 +323,7 @@ function startSubRound(room, subRoundNum) {
 
     room.timer = setTimeout(() => {
       startFinalVoting(room);
-    }, room.settings.writeTime * 1000);
+    }, writeTime * 1000);
   }
 }
 
@@ -326,12 +332,51 @@ function startMatchupVoting(room) {
   const matchup = engine.getCurrentMatchup(room);
   if (!matchup) return;
 
+  const a1 = matchup.player1.answer;
+  const a2 = matchup.player2.answer;
+  const noAnswer1 = !a1;
+  const noAnswer2 = !a2;
+
+  // If one or both have no answer — auto-resolve, skip voting
+  if (noAnswer1 || noAnswer2) {
+    // Auto-win for the one who answered (or tie if both empty)
+    const data = {
+      index: matchup.index,
+      total: room.matchups.length,
+      promptText: matchup.prompt.text,
+      answer1: a1 || '💨 אין תשובה',
+      answer2: a2 || '💨 אין תשובה',
+      noAnswer1,
+      noAnswer2,
+      autoResolve: true,
+      voteTime: 0,
+      subRound: room.subRound,
+      multiplier: room.multiplier
+    };
+
+    io.to(room.hostId).emit('matchup-show', data);
+    room.players.forEach((player, id) => {
+      if (!player.connected) return;
+      io.to(id).emit('matchup-vote', { ...data, isMyMatchup: matchup.player1.id === id || matchup.player2.id === id });
+    });
+
+    // Auto-resolve after brief display
+    room.timer = setTimeout(() => {
+      engine.autoResolveMatchup(room, noAnswer1, noAnswer2);
+      showMatchupResult(room);
+    }, 2000);
+    return;
+  }
+
   const data = {
     index: matchup.index,
     total: room.matchups.length,
     promptText: matchup.prompt.text,
-    answer1: matchup.player1.answer || '💨 (no answer)',
-    answer2: matchup.player2.answer || '💨 (no answer)',
+    answer1: a1,
+    answer2: a2,
+    noAnswer1: false,
+    noAnswer2: false,
+    autoResolve: false,
     voteTime: room.settings.matchupVoteTime,
     subRound: room.subRound,
     multiplier: room.multiplier
@@ -339,7 +384,6 @@ function startMatchupVoting(room) {
 
   io.to(room.hostId).emit('matchup-show', data);
 
-  // Send to all players — mark if it's their matchup
   room.players.forEach((player, id) => {
     if (!player.connected) return;
     io.to(id).emit('matchup-vote', {

@@ -1,11 +1,106 @@
 const socket = io();
 
+// ============================================================
+// MUSIC SYSTEM
+// ============================================================
+const lobbyMusic = new Audio('/assets/lobby-music.mp3');
+lobbyMusic.loop = true;
+lobbyMusic.volume = 0.5;
+
+const gameMusic = new Audio('/assets/game-music.mp3');
+gameMusic.loop = true;
+gameMusic.volume = 0.4;
+
+let currentMusic = null;
+let isMuted = false;
+
+function playMusic(track) {
+  if (currentMusic && currentMusic !== track) {
+    currentMusic.pause();
+    currentMusic.currentTime = 0;
+  }
+  currentMusic = track;
+  if (!isMuted) {
+    track.play().catch(() => {}); // Ignore autoplay block
+  }
+}
+
+function stopMusic() {
+  if (currentMusic) {
+    currentMusic.pause();
+    currentMusic.currentTime = 0;
+    currentMusic = null;
+  }
+}
+
+function toggleMute() {
+  isMuted = !isMuted;
+  lobbyMusic.muted = isMuted;
+  gameMusic.muted = isMuted;
+  const btn = document.getElementById('mute-btn');
+  if (btn) btn.textContent = isMuted ? '🔇' : '🔊';
+}
+
+function setVolume(val) {
+  const v = parseFloat(val);
+  lobbyMusic.volume = v;
+  gameMusic.volume = v * 0.8;
+}
+
+// Start lobby music on first user interaction
+document.addEventListener('click', function startLobbyMusic() {
+  const lobbyScreen = document.getElementById('screen-lobby');
+  if (lobbyScreen && lobbyScreen.classList.contains('active')) {
+    playMusic(lobbyMusic);
+  }
+  document.removeEventListener('click', startLobbyMusic);
+}, { once: false });
+
+// ============================================================
+// CIRCULAR TIMER
+// ============================================================
+let activeTimerInterval = null;
+
+function startCircleTimer(containerId, seconds) {
+  clearInterval(activeTimerInterval);
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  let remaining = seconds;
+  el.innerHTML = renderCircle(remaining, seconds);
+
+  activeTimerInterval = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) { clearInterval(activeTimerInterval); remaining = 0; }
+    el.innerHTML = renderCircle(remaining, seconds);
+  }, 1000);
+}
+
+function renderCircle(remaining, total) {
+  const pct = total > 0 ? (remaining / total) * 100 : 0;
+  const deg = (pct / 100) * 360;
+  const color = remaining <= 5 ? '#FF1493' : remaining <= 15 ? '#FFD700' : '#39FF14';
+  return `<div class="circle-timer" style="background: conic-gradient(${color} ${deg}deg, rgba(255,255,255,0.1) ${deg}deg)">
+    <div class="circle-timer-inner">${remaining}</div>
+  </div>`;
+}
+
 // --- Screen management ---
 const screens = {};
 document.querySelectorAll('.screen').forEach(s => { screens[s.id.replace('screen-', '')] = s; });
 function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.remove('active'));
   if (screens[name]) screens[name].classList.add('active');
+
+  // Music control: lobby music on lobby, game music during game
+  if (name === 'lobby') {
+    playMusic(lobbyMusic);
+  } else if (['writing', 'final-write'].includes(name)) {
+    playMusic(gameMusic);
+  } else if (name === 'round-complete') {
+    stopMusic();
+    playRoundCompleteMusic();
+  }
 }
 
 // --- Room creation ---
@@ -57,7 +152,7 @@ socket.on('sub-round-start', ({ subRound, multiplier, matchupCount, writeTime })
   document.getElementById('write-sub').textContent = subRound;
   document.getElementById('write-multiplier').textContent = `x${multiplier}`;
   document.getElementById('answer-progress').textContent = `0/${matchupCount * 2}`;
-  startTimer('write-timer-bar', writeTime);
+  startCircleTimer('write-timer', writeTime);
   animateFart();
 });
 
@@ -82,7 +177,7 @@ socket.on('matchup-show', ({ index, total, promptText, answer1, answer2, voteTim
   document.getElementById('matchup-a1').className = 'matchup-answer left pop-in';
   document.getElementById('matchup-a2').className = 'matchup-answer right pop-in';
 
-  startTimer('matchup-timer-bar', voteTime);
+  startCircleTimer('matchup-timer', voteTime);
 });
 
 socket.on('matchup-vote-progress', ({ count }) => {
@@ -129,7 +224,7 @@ socket.on('final-round-start', ({ prompt, writeTime }) => {
   showScreen('final-write');
   document.getElementById('final-prompt-text').textContent = prompt.text;
   document.getElementById('final-write-progress').textContent = '0/0';
-  startTimer('final-write-timer', writeTime);
+  startCircleTimer('final-write-timer', writeTime);
 });
 
 socket.on('final-voting-start', ({ prompt, answers, voteTime }) => {
@@ -144,7 +239,7 @@ socket.on('final-voting-start', ({ prompt, answers, voteTime }) => {
     </div>
   `).join('');
 
-  startTimer('final-vote-timer', voteTime);
+  startCircleTimer('final-vote-timer', voteTime);
 });
 
 socket.on('final-vote-progress', ({ count }) => {
@@ -243,15 +338,7 @@ function renderScoreboard(containerId, scores) {
   }).join('');
 }
 
-function startTimer(barId, seconds) {
-  const bar = document.getElementById(barId);
-  if (!bar) return;
-  bar.style.transition = 'none';
-  bar.style.width = '100%';
-  bar.offsetHeight;
-  bar.style.transition = `width ${seconds}s linear`;
-  bar.style.width = '0%';
-}
+// startTimer replaced by startCircleTimer above
 
 let fartInterval;
 function animateFart() {

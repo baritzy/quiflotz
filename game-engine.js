@@ -138,11 +138,51 @@ class GameEngine {
   }
 
   /**
+   * Auto-resolve a matchup when one or both players have no answer.
+   * The player who answered gets all points automatically.
+   */
+  autoResolveMatchup(room, noAnswer1, noAnswer2) {
+    const matchup = this.getCurrentMatchup(room);
+    if (!matchup) return;
+
+    const eligible = Array.from(room.players.values())
+      .filter(p => p.connected && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
+    const basePoints = eligible * 100 * room.multiplier;
+
+    if (noAnswer1 && !noAnswer2) {
+      // Player 2 wins automatically
+      matchup.result = {
+        prompt: matchup.prompt,
+        player1: { name: matchup.player1.name, answer: '💨 אין תשובה', points: 0, percentage: 0, voters: [], quiflotz: false },
+        player2: { name: matchup.player2.name, answer: matchup.player2.answer, points: basePoints, percentage: 100, voters: ['אוטומטי'], quiflotz: true }
+      };
+      const p2 = room.players.get(matchup.player2.id);
+      if (p2) p2.score += basePoints;
+    } else if (!noAnswer1 && noAnswer2) {
+      matchup.result = {
+        prompt: matchup.prompt,
+        player1: { name: matchup.player1.name, answer: matchup.player1.answer, points: basePoints, percentage: 100, voters: ['אוטומטי'], quiflotz: true },
+        player2: { name: matchup.player2.name, answer: '💨 אין תשובה', points: 0, percentage: 0, voters: [], quiflotz: false }
+      };
+      const p1 = room.players.get(matchup.player1.id);
+      if (p1) p1.score += basePoints;
+    } else {
+      // Both no answer — 0 points each
+      matchup.result = {
+        prompt: matchup.prompt,
+        player1: { name: matchup.player1.name, answer: '💨 אין תשובה', points: 0, percentage: 50, voters: [], quiflotz: false },
+        player2: { name: matchup.player2.name, answer: '💨 אין תשובה', points: 0, percentage: 50, voters: [], quiflotz: false }
+      };
+    }
+  }
+
+  /**
    * Calculate matchup result and award points.
    */
   resolveMatchup(room) {
     const matchup = this.getCurrentMatchup(room);
     if (!matchup) return null;
+    if (matchup.result) return matchup.result; // Already auto-resolved
 
     let p1Votes = 0, p2Votes = 0;
     const p1Voters = [], p2Voters = [];

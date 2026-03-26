@@ -29,6 +29,11 @@
       </div>
       <button class="btn btn-start" id="btn-start" disabled>🍑 יאללה מתחילים!</button>
     </div>
+    <!-- Volume controls -->
+    <div class="volume-controls" id="volume-controls">
+      <button class="mute-btn" id="mute-btn" onclick="toggleMute()">🔊</button>
+      <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.05" value="0.5" oninput="setVolume(this.value)">
+    </div>
   </div>
 
   <!-- WRITING PHASE (sub-rounds 1 & 2) -->
@@ -40,7 +45,7 @@
       </div>
       <div class="big-icon">✍️</div>
       <h2>השחקנים כותבים תשובות...</h2>
-      <div class="timer-bar-container"><div class="timer-bar" id="write-timer-bar"></div></div>
+      <div class="circle-timer-container" id="write-timer"></div>
       <div class="waiting-text">📝 <span id="answer-progress">0/0</span> תשובות</div>
       <div class="waiting-fart" id="waiting-fart">💨</div>
     </div>
@@ -63,7 +68,7 @@
           <div class="matchup-answer-text" id="matchup-a2-text"></div>
         </div>
       </div>
-      <div class="timer-bar-container"><div class="timer-bar" id="matchup-timer-bar"></div></div>
+      <div class="circle-timer-container" id="matchup-timer"></div>
       <div class="waiting-text">🗳️ <span id="matchup-vote-count">0</span> הצבעות</div>
     </div>
   </div>
@@ -105,7 +110,7 @@
       </div>
       <div class="prompt-card"><div class="prompt-text" id="final-prompt-text"></div></div>
       <h2>כל השחקנים עונים על אותו פרומפט!</h2>
-      <div class="timer-bar-container"><div class="timer-bar" id="final-write-timer"></div></div>
+      <div class="circle-timer-container" id="final-write-timer"></div>
       <div class="waiting-text">📝 <span id="final-write-progress">0/0</span> תשובות</div>
     </div>
   </div>
@@ -119,7 +124,7 @@
       </div>
       <div class="prompt-card small"><div class="prompt-text" id="final-vote-prompt"></div></div>
       <div class="final-answers-grid" id="final-answers-grid"></div>
-      <div class="timer-bar-container"><div class="timer-bar" id="final-vote-timer"></div></div>
+      <div class="circle-timer-container" id="final-vote-timer"></div>
       <div class="waiting-text">🗳️ <span id="final-vote-count">0</span> הצביעו</div>
     </div>
   </div>

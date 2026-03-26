@@ -1431,3 +1431,117 @@ body::before {
     font-size: 1.5rem;
   }
 }
+
+/* ============================================
+   CIRCULAR TIMER
+   ============================================ */
+
+.circle-timer-container {
+  display: flex;
+  justify-content: center;
+  margin: 15px auto;
+}
+
+.circle-timer {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.circle-timer-inner {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--bg-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Mobile: slightly smaller */
+.mobile-container .circle-timer {
+  width: 65px;
+  height: 65px;
+}
+
+.mobile-container .circle-timer-inner {
+  width: 48px;
+  height: 48px;
+  font-size: 1.2rem;
+}
+
+/* ============================================
+   VOLUME CONTROLS
+   ============================================ */
+
+.volume-controls {
+  position: fixed;
+  bottom: 15px;
+  left: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 100;
+  background: rgba(0,0,0,0.5);
+  padding: 8px 12px;
+  border-radius: 50px;
+  backdrop-filter: blur(10px);
+}
+
+.mute-btn {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.volume-slider {
+  width: 80px;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--neon-green);
+  cursor: pointer;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--neon-green);
+  cursor: pointer;
+  border: none;
+}
+
+/* ============================================
+   PROMPT COUNTER (1/2, 2/2)
+   ============================================ */
+
+.prompt-counter {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--yellow);
+  text-align: center;
+  margin-bottom: 10px;
+}

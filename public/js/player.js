@@ -50,54 +50,84 @@ function showError(msg) {
 // SUB-ROUNDS 1 & 2: Writing 2 prompts
 // ============================================================
 
+// Sequential prompt handling: show one prompt at a time
+let currentPrompts = [];
+let currentPromptIndex = 0;
+let collectedAnswers = [];
+let writeTimerEnd = 0;
+let writeTimerInterval = null;
+
 socket.on('your-prompts', ({ subRound, multiplier, prompts, writeTime }) => {
   showScreen('write-prompts');
   document.getElementById('p-sub-round').textContent = subRound;
   document.getElementById('p-multiplier').textContent = `x${multiplier}`;
 
-  const container = document.getElementById('prompts-container');
-  container.innerHTML = prompts.map((p, i) => `
-    <div class="prompt-write-block">
-      <div class="prompt-card mobile small">
-        <div class="prompt-text">${esc(p.promptText)}</div>
-      </div>
-      <input type="text" class="input-answer" placeholder="Write your answer..."
-        maxlength="100" autocomplete="off" dir="ltr"
-        data-matchup="${p.matchupIndex}" id="answer-${i}">
-    </div>
-  `).join('');
+  currentPrompts = prompts;
+  currentPromptIndex = 0;
+  collectedAnswers = [];
+  writeTimerEnd = Date.now() + writeTime * 1000;
 
-  // Focus first input
-  setTimeout(() => document.getElementById('answer-0')?.focus(), 100);
-  startTimer('p-write-timer', writeTime);
+  showCurrentPrompt();
+  startCountdown('p-write-timer', writeTime);
 });
 
-document.getElementById('btn-submit-answers').addEventListener('click', submitAnswers);
+function showCurrentPrompt() {
+  const p = currentPrompts[currentPromptIndex];
+  if (!p) return;
 
-function submitAnswers() {
-  const inputs = document.querySelectorAll('#prompts-container input');
-  const answers = [];
-  inputs.forEach(inp => {
-    const text = inp.value.trim();
-    if (text) {
-      answers.push({ matchupIndex: parseInt(inp.dataset.matchup), text });
-    }
-  });
+  const container = document.getElementById('prompts-container');
+  container.innerHTML = `
+    <div class="prompt-counter">${currentPromptIndex + 1}/${currentPrompts.length}</div>
+    <div class="prompt-card mobile">
+      <div class="prompt-text">${esc(p.promptText)}</div>
+    </div>
+    <input type="text" class="input-answer" placeholder="Write your answer..."
+      maxlength="100" autocomplete="off" dir="ltr"
+      data-matchup="${p.matchupIndex}" id="current-answer">
+  `;
 
-  if (answers.length === 0) return;
-  socket.emit('submit-answers', { answers });
-  showScreen('submitted');
+  setTimeout(() => document.getElementById('current-answer')?.focus(), 100);
 }
 
-// Auto-submit on timer expiry is handled server-side (empty answers become "(no answer)")
+document.getElementById('btn-submit-answers').addEventListener('click', submitCurrentAnswer);
+
+function submitCurrentAnswer() {
+  const input = document.getElementById('current-answer');
+  if (!input) return;
+  const text = input.value.trim();
+  const matchupIndex = parseInt(input.dataset.matchup);
+
+  if (text) {
+    collectedAnswers.push({ matchupIndex, text });
+  }
+
+  currentPromptIndex++;
+
+  if (currentPromptIndex < currentPrompts.length) {
+    // Show next prompt
+    showCurrentPrompt();
+  } else {
+    // All prompts answered — send to server
+    if (collectedAnswers.length > 0) {
+      socket.emit('submit-answers', { answers: collectedAnswers });
+    }
+    showScreen('submitted');
+    clearInterval(writeTimerInterval);
+  }
+}
+
+// Allow Enter to submit
+document.getElementById('prompts-container')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submitCurrentAnswer();
+});
 
 // ============================================================
 // MATCHUP VOTING (1v1)
 // ============================================================
 
-socket.on('matchup-vote', ({ promptText, answer1, answer2, isMyMatchup, voteTime }) => {
-  if (isMyMatchup) {
-    showScreen('matchup-watch');
+socket.on('matchup-vote', ({ promptText, answer1, answer2, isMyMatchup, autoResolve, noAnswer1, noAnswer2, voteTime }) => {
+  if (isMyMatchup || autoResolve) {
+    showScreen(isMyMatchup ? 'matchup-watch' : 'between');
     return;
   }
 
@@ -137,7 +167,7 @@ socket.on('final-write-prompt', ({ prompt, writeTime }) => {
   document.getElementById('p-final-prompt').textContent = prompt.text;
   document.getElementById('input-final-answer').value = '';
   setTimeout(() => document.getElementById('input-final-answer')?.focus(), 100);
-  startTimer('p-final-write-timer', writeTime);
+  startGenericCountdown('p-final-write-timer', writeTime);
 });
 
 document.getElementById('btn-submit-final').addEventListener('click', () => {
@@ -202,7 +232,7 @@ socket.on('final-vote-options', ({ prompt, answers, voteTime }) => {
     });
   });
 
-  startTimer('p-final-vote-timer', voteTime);
+  startGenericCountdown('p-final-vote-timer', voteTime);
 });
 
 function updateVotesUI() {
@@ -284,14 +314,54 @@ socket.on('spectator-final-writing', ({ prompt }) => {
 socket.on('game-restarted', () => showScreen('waiting'));
 socket.on('host-left', () => { alert('ה-Host עזב 😢'); showScreen('join'); });
 
-function startTimer(barId, seconds) {
-  const bar = document.getElementById(barId);
-  if (!bar) return;
-  bar.style.transition = 'none';
-  bar.style.width = '100%';
-  bar.offsetHeight;
-  bar.style.transition = `width ${seconds}s linear`;
-  bar.style.width = '0%';
+function startCountdown(timerId, seconds) {
+  clearInterval(writeTimerInterval);
+  const el = document.getElementById(timerId);
+  if (!el) return;
+
+  let remaining = seconds;
+  el.innerHTML = createCircleTimer(remaining, seconds);
+
+  writeTimerInterval = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(writeTimerInterval);
+      remaining = 0;
+      // Auto-submit whatever we have
+      if (collectedAnswers.length < currentPrompts.length) {
+        const input = document.getElementById('current-answer');
+        if (input && input.value.trim()) {
+          collectedAnswers.push({ matchupIndex: parseInt(input.dataset.matchup), text: input.value.trim() });
+        }
+        if (collectedAnswers.length > 0) {
+          socket.emit('submit-answers', { answers: collectedAnswers });
+        }
+        showScreen('submitted');
+      }
+    }
+    el.innerHTML = createCircleTimer(remaining, seconds);
+  }, 1000);
+}
+
+function startGenericCountdown(timerId, seconds) {
+  const el = document.getElementById(timerId);
+  if (!el) return;
+  let remaining = seconds;
+  el.innerHTML = createCircleTimer(remaining, seconds);
+  const iv = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) { clearInterval(iv); remaining = 0; }
+    el.innerHTML = createCircleTimer(remaining, seconds);
+  }, 1000);
+}
+
+function createCircleTimer(remaining, total) {
+  const pct = total > 0 ? (remaining / total) * 100 : 0;
+  const deg = (pct / 100) * 360;
+  const color = remaining <= 5 ? '#FF1493' : remaining <= 15 ? '#FFD700' : '#39FF14';
+  return `<div class="circle-timer" style="background: conic-gradient(${color} ${deg}deg, rgba(255,255,255,0.1) ${deg}deg)">
+    <div class="circle-timer-inner">${remaining}</div>
+  </div>`;
 }
 
 function esc(text) {
