@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Quiflotz 💨</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#39FF14">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="player-body">
+
+  <!-- JOIN -->
+  <div id="screen-join" class="screen active">
+    <div class="mobile-container">
+      <h1 class="game-logo mobile-logo"><span class="logo-q">Q</span>uiflotz <span class="logo-emoji">💨</span></h1>
+      <div class="join-form">
+        <input type="text" id="input-code" class="input-field" placeholder="קוד החדר" maxlength="4" autocomplete="off" dir="ltr">
+        <input type="text" id="input-name" class="input-field" placeholder="השם שלך" maxlength="20" autocomplete="off">
+        <button class="btn btn-join" id="btn-join">🍑 הצטרפות!</button>
+        <p class="error-text" id="join-error" style="display:none"></p>
+      </div>
+      <div class="or-divider">— או —</div>
+      <a href="/host" class="btn btn-host-link">📺 אני ה-Host (מסך ראשי)</a>
+    </div>
+  </div>
+
+  <!-- WAITING IN LOBBY -->
+  <div id="screen-waiting" class="screen">
+    <div class="mobile-container centered">
+      <div class="waiting-icon">🍑</div>
+      <h2 class="waiting-title">ברוכים הנכנסים!</h2>
+      <p class="waiting-name" id="display-name"></p>
+      <p class="waiting-subtitle" id="waiting-role"></p>
+      <div class="waiting-animation">
+        <span class="bounce-emoji">💨</span>
+        <span class="bounce-emoji" style="animation-delay:0.2s">💨</span>
+        <span class="bounce-emoji" style="animation-delay:0.4s">💨</span>
+      </div>
+      <p class="waiting-hint">מחכים שה-Host יתחיל את המשחק...</p>
+    </div>
+  </div>
+
+  <!-- WRITING: 2 PROMPTS (sub-rounds 1 & 2) -->
+  <div id="screen-write-prompts" class="screen">
+    <div class="mobile-container">
+      <div class="sub-round-header">
+        <span class="round-badge small">סיבוב <span id="p-sub-round">1</span>/3</span>
+        <span class="multiplier-badge small" id="p-multiplier">x1</span>
+      </div>
+      <div id="prompts-container"></div>
+      <button class="btn btn-submit" id="btn-submit-answers">שלח תשובות! 💨</button>
+      <div class="timer-bar-container"><div class="timer-bar" id="p-write-timer"></div></div>
+    </div>
+  </div>
+
+  <!-- ANSWER SUBMITTED -->
+  <div id="screen-submitted" class="screen">
+    <div class="mobile-container centered">
+      <div class="submitted-icon">✅</div>
+      <h2>התשובות נשלחו!</h2>
+      <div class="waiting-animation"><span class="bounce-emoji">🍑</span></div>
+      <p class="waiting-hint">מחכים לשאר השחקנים...</p>
+    </div>
+  </div>
+
+  <!-- MATCHUP VOTING (1v1) -->
+  <div id="screen-matchup-vote" class="screen">
+    <div class="mobile-container">
+      <div class="prompt-card mobile small">
+        <div class="prompt-text" id="p-matchup-prompt"></div>
+      </div>
+      <div id="matchup-vote-area"></div>
+    </div>
+  </div>
+
+  <!-- MATCHUP WATCHING (your own matchup) -->
+  <div id="screen-matchup-watch" class="screen">
+    <div class="mobile-container centered">
+      <div class="waiting-icon">👀</div>
+      <h2>זה המשחק שלך!</h2>
+      <p class="waiting-hint">הסתכלו על המסך הראשי...</p>
+      <div class="waiting-animation"><span class="bounce-emoji">🤞</span></div>
+    </div>
+  </div>
+
+  <!-- VOTED -->
+  <div id="screen-voted" class="screen">
+    <div class="mobile-container centered">
+      <div class="submitted-icon">🗳️</div>
+      <h2>הצבעת!</h2>
+      <div class="waiting-animation"><span class="bounce-emoji">💨</span></div>
+    </div>
+  </div>
+
+  <!-- WAITING BETWEEN MATCHUPS -->
+  <div id="screen-between" class="screen">
+    <div class="mobile-container centered">
+      <div class="waiting-icon">👀</div>
+      <p class="waiting-hint">הסתכלו על המסך הראשי...</p>
+    </div>
+  </div>
+
+  <!-- FINAL ROUND WRITING -->
+  <div id="screen-final-write" class="screen">
+    <div class="mobile-container">
+      <div class="sub-round-header">
+        <span class="round-badge small">🔥 סיבוב אחרון!</span>
+        <span class="multiplier-badge small">x3</span>
+      </div>
+      <div class="prompt-card mobile">
+        <div class="prompt-text" id="p-final-prompt"></div>
+      </div>
+      <div class="write-area">
+        <input type="text" id="input-final-answer" class="input-answer" placeholder="Write your answer..." maxlength="100" autocomplete="off" dir="ltr">
+        <button class="btn btn-submit" id="btn-submit-final">שלח! 💨</button>
+      </div>
+      <div class="timer-bar-container"><div class="timer-bar" id="p-final-write-timer"></div></div>
+    </div>
+  </div>
+
+  <!-- FINAL ROUND VOTING (3 votes) -->
+  <div id="screen-final-vote" class="screen">
+    <div class="mobile-container">
+      <div class="sub-round-header">
+        <span class="round-badge small">🔥 חלקו 3 הצבעות!</span>
+        <span class="multiplier-badge small">x3</span>
+      </div>
+      <div class="votes-remaining">נשארו: <span id="votes-left">3</span> הצבעות</div>
+      <div id="final-vote-list"></div>
+      <button class="btn btn-submit" id="btn-submit-final-votes" disabled>שלח הצבעות! 🗳️</button>
+      <div class="timer-bar-container"><div class="timer-bar" id="p-final-vote-timer"></div></div>
+    </div>
+  </div>
+
+  <!-- SCOREBOARD (mobile) -->
+  <div id="screen-scoreboard" class="screen">
+    <div class="mobile-container centered">
+      <h2>🏆 טבלת ניקוד</h2>
+      <div id="mobile-scoreboard"></div>
+      <p class="waiting-hint">מחכים לסיבוב הבא...</p>
+    </div>
+  </div>
+
+  <!-- ROUND COMPLETE (mobile) -->
+  <div id="screen-round-complete" class="screen">
+    <div class="mobile-container centered">
+      <h1 class="final-title mobile">🎉</h1>
+      <div id="mobile-round-result"></div>
+    </div>
+  </div>
+
+  <!-- SPECTATOR GENERIC -->
+  <div id="screen-spectator" class="screen">
+    <div class="mobile-container centered">
+      <div class="waiting-icon">👀</div>
+      <h2>צופה</h2>
+      <p class="waiting-hint" id="spectator-status">מחכים...</p>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/player.js"></script>
+</body>
+</html>

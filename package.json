@@ -1,0 +1,17 @@
+{
+  "name": "quiflotz",
+  "version": "1.0.0",
+  "description": "Quiflotz - Party game inspired by Quiplash. Hebrew prompts, English answers, childish vibes.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.4"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.3"
+  }
+}

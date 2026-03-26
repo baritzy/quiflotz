@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiflotz 💨 — Host</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#39FF14">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="host-body">
+
+  <!-- LOBBY -->
+  <div id="screen-lobby" class="screen active">
+    <div class="lobby-container">
+      <h1 class="game-logo"><span class="logo-q">Q</span>uiflotz <span class="logo-emoji">💨</span></h1>
+      <div class="room-code-box">
+        <p class="room-code-label">קוד החדר:</p>
+        <div class="room-code" id="room-code">----</div>
+        <p class="join-url" id="join-url">היכנסו מהטלפון לאותו כתובת</p>
+      </div>
+      <div class="players-area">
+        <h2 class="section-title">שחקנים <span id="player-count">0</span>/8</h2>
+        <div class="players-grid" id="players-grid"></div>
+        <p class="spectator-info" id="spectator-info" style="display:none">👀 <span id="spectator-count">0</span> צופים</p>
+      </div>
+      <button class="btn btn-start" id="btn-start" disabled>🍑 יאללה מתחילים!</button>
+    </div>
+  </div>
+
+  <!-- WRITING PHASE (sub-rounds 1 & 2) -->
+  <div id="screen-writing" class="screen">
+    <div class="phase-container">
+      <div class="sub-round-header">
+        <span class="round-badge">סיבוב <span id="write-sub">1</span>/3</span>
+        <span class="multiplier-badge" id="write-multiplier">x1</span>
+      </div>
+      <div class="big-icon">✍️</div>
+      <h2>השחקנים כותבים תשובות...</h2>
+      <div class="timer-bar-container"><div class="timer-bar" id="write-timer-bar"></div></div>
+      <div class="waiting-text">📝 <span id="answer-progress">0/0</span> תשובות</div>
+      <div class="waiting-fart" id="waiting-fart">💨</div>
+    </div>
+  </div>
+
+  <!-- MATCHUP VOTING (1v1) -->
+  <div id="screen-matchup" class="screen">
+    <div class="phase-container">
+      <div class="sub-round-header">
+        <span class="round-badge">משחק <span id="matchup-num">1</span>/<span id="matchup-total">4</span></span>
+        <span class="multiplier-badge" id="matchup-multiplier">x1</span>
+      </div>
+      <div class="prompt-card"><div class="prompt-text" id="matchup-prompt"></div></div>
+      <div class="matchup-arena">
+        <div class="matchup-answer left" id="matchup-a1">
+          <div class="matchup-answer-text" id="matchup-a1-text"></div>
+        </div>
+        <div class="matchup-vs">VS</div>
+        <div class="matchup-answer right" id="matchup-a2">
+          <div class="matchup-answer-text" id="matchup-a2-text"></div>
+        </div>
+      </div>
+      <div class="timer-bar-container"><div class="timer-bar" id="matchup-timer-bar"></div></div>
+      <div class="waiting-text">🗳️ <span id="matchup-vote-count">0</span> הצבעות</div>
+    </div>
+  </div>
+
+  <!-- MATCHUP RESULT -->
+  <div id="screen-matchup-result" class="screen">
+    <div class="phase-container">
+      <div class="prompt-card small"><div class="prompt-text" id="result-prompt"></div></div>
+      <div class="matchup-result-arena">
+        <div class="matchup-result-side left" id="result-left">
+          <div class="result-player-name" id="result-name1"></div>
+          <div class="result-answer-text" id="result-text1"></div>
+          <div class="result-bar-container">
+            <div class="result-bar left-bar" id="result-bar1"></div>
+          </div>
+          <div class="result-percentage" id="result-pct1">50%</div>
+          <div class="result-points" id="result-pts1">+0</div>
+        </div>
+        <div class="matchup-result-side right" id="result-right">
+          <div class="result-player-name" id="result-name2"></div>
+          <div class="result-answer-text" id="result-text2"></div>
+          <div class="result-bar-container">
+            <div class="result-bar right-bar" id="result-bar2"></div>
+          </div>
+          <div class="result-percentage" id="result-pct2">50%</div>
+          <div class="result-points" id="result-pts2">+0</div>
+        </div>
+      </div>
+      <button class="btn btn-next" id="btn-next-matchup">הבא ➡️</button>
+    </div>
+  </div>
+
+  <!-- FINAL ROUND WRITING (sub-round 3) -->
+  <div id="screen-final-write" class="screen">
+    <div class="phase-container">
+      <div class="sub-round-header">
+        <span class="round-badge">🔥 סיבוב אחרון!</span>
+        <span class="multiplier-badge">x3</span>
+      </div>
+      <div class="prompt-card"><div class="prompt-text" id="final-prompt-text"></div></div>
+      <h2>כל השחקנים עונים על אותו פרומפט!</h2>
+      <div class="timer-bar-container"><div class="timer-bar" id="final-write-timer"></div></div>
+      <div class="waiting-text">📝 <span id="final-write-progress">0/0</span> תשובות</div>
+    </div>
+  </div>
+
+  <!-- FINAL ROUND VOTING -->
+  <div id="screen-final-vote" class="screen">
+    <div class="phase-container">
+      <div class="sub-round-header">
+        <span class="round-badge">🔥 הצביעו! (3 הצבעות לכל אחד)</span>
+        <span class="multiplier-badge">x3</span>
+      </div>
+      <div class="prompt-card small"><div class="prompt-text" id="final-vote-prompt"></div></div>
+      <div class="final-answers-grid" id="final-answers-grid"></div>
+      <div class="timer-bar-container"><div class="timer-bar" id="final-vote-timer"></div></div>
+      <div class="waiting-text">🗳️ <span id="final-vote-count">0</span> הצביעו</div>
+    </div>
+  </div>
+
+  <!-- FINAL ROUND RESULTS -->
+  <div id="screen-final-result" class="screen">
+    <div class="phase-container">
+      <div class="sub-round-header">
+        <span class="round-badge">🔥 תוצאות הסיבוב האחרון</span>
+        <span class="multiplier-badge">x3</span>
+      </div>
+      <div class="prompt-card small"><div class="prompt-text" id="final-result-prompt"></div></div>
+      <div class="results-list" id="final-results-list"></div>
+      <button class="btn btn-next" id="btn-after-final">טבלת ניקוד ➡️</button>
+    </div>
+  </div>
+
+  <!-- SCOREBOARD -->
+  <div id="screen-scoreboard" class="screen">
+    <div class="phase-container">
+      <h1 class="scoreboard-title">🏆 טבלת ניקוד</h1>
+      <div class="scoreboard-sub" id="scoreboard-sub"></div>
+      <div class="final-scoreboard" id="scoreboard-list"></div>
+      <button class="btn btn-next" id="btn-next-sub">סיבוב הבא ➡️</button>
+    </div>
+  </div>
+
+  <!-- ROUND COMPLETE -->
+  <div id="screen-round-complete" class="screen">
+    <div class="final-container">
+      <h1 class="final-title">🎉 סוף הסיבוב! 🎉</h1>
+      <div id="round-winner-showcase" class="winner-showcase"></div>
+      <div class="final-scoreboard" id="round-final-scores"></div>
+      <button class="btn btn-start" id="btn-new-round">🔄 סיבוב חדש!</button>
+      <button class="btn btn-host-link" id="btn-back-lobby" style="margin-top:10px">🏠 חזרה ללובי</button>
+    </div>
+  </div>
+
+  <!-- QUIFLOTZ OVERLAY -->
+  <div id="quiflotz-overlay" class="quiflotz-overlay hidden">
+    <div class="quiflotz-text">💨 QUIFLOTZ! 💨</div>
+    <div class="quiflotz-sub">כל ההצבעות! ניקוד כפול!</div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/host.js"></script>
+</body>
+</html>

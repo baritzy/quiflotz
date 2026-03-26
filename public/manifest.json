@@ -1,0 +1,16 @@
+{
+  "name": "Quiflotz",
+  "short_name": "Quiflotz",
+  "description": "Party game - Hebrew prompts, English answers!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0221",
+  "theme_color": "#39FF14",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
