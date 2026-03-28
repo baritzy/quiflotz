@@ -35,11 +35,11 @@ function getPlayerAvatarIndex(playerId) {
 // ============================================================
 const lobbyMusic = new Audio('/assets/lobby-music.mp3');
 lobbyMusic.loop = true;
-lobbyMusic.volume = 0.5;
+lobbyMusic.volume = 1.0;
 
 const gameMusic = new Audio('/assets/game-music.mp3');
 gameMusic.loop = true;
-gameMusic.volume = 0.4;
+gameMusic.volume = 0.8;
 
 let currentMusic = null;
 let isMuted = false;
@@ -78,7 +78,7 @@ function toggleMute() {
 function setVolume(val) {
   const v = parseFloat(val);
   lobbyMusic.volume = v;
-  gameMusic.volume = v * 0.8;
+  gameMusic.volume = v;
 }
 
 lobbyMusic.preload = 'auto';
@@ -177,26 +177,27 @@ function updateLobby(players, spectatorCount) {
     }
   });
 
-  // Update podium slots
-  const slots = document.querySelectorAll('.podium-slot');
+  // Update circle slots
+  const slots = document.querySelectorAll('.circle-slot');
   slots.forEach((slot, i) => {
-    const charEl = slot.querySelector('.podium-character');
-    const nameEl = slot.querySelector('.podium-name-tag');
+    const charEl = slot.querySelector('.circle-character');
+    const labelEl = slot.querySelector('.circle-label');
+    const nameEl = slot.querySelector('.circle-name');
     const player = players[i];
 
     if (player) {
       const avatar = AVATARS[i % 8];
       charEl.textContent = avatar.emoji;
-      charEl.className = 'podium-character filled breathing-slow';
+      charEl.style.display = 'block';
+      labelEl.style.display = 'none';
       nameEl.textContent = player.name;
-      nameEl.className = 'podium-name-tag filled';
       slot.classList.add('occupied');
       slot.classList.toggle('disconnected', !player.connected);
     } else {
       charEl.textContent = '';
-      charEl.className = 'podium-character';
+      charEl.style.display = 'none';
+      labelEl.style.display = 'block';
       nameEl.textContent = '';
-      nameEl.className = 'podium-name-tag';
       slot.classList.remove('occupied', 'disconnected');
     }
   });

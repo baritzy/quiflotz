@@ -24,76 +24,79 @@
   <!-- LOBBY -->
   <div id="screen-lobby" class="screen">
     <div class="lobby-layout">
-      <!-- Top bar: logo left, room code right -->
-      <div class="lobby-top">
-        <div class="lobby-top-left">
-          <img src="/assets/img/logo.png" alt="Quiflotz" class="lobby-logo breathing">
+      <!-- LEFT SIDE: Logo + join info -->
+      <div class="lobby-left">
+        <img src="/assets/img/logo.png" alt="Quiflotz" class="lobby-logo breathing">
+        <div class="lobby-join-box">
+          <p class="lobby-join-label">היכנסו דרך</p>
+          <p class="lobby-join-url" id="join-url">quiflotz.onrender.com</p>
+          <p class="lobby-code-label">קוד החדר:</p>
+          <div class="lobby-room-code" id="room-code">----</div>
         </div>
-        <div class="lobby-top-right">
-          <div class="lobby-join-info">
-            <div class="lobby-join-label">היכנסו דרך</div>
-            <div class="lobby-join-url" id="join-url">quiflotz.onrender.com</div>
-            <div class="lobby-code-label">קוד החדר:</div>
-            <div class="lobby-room-code" id="room-code">----</div>
-          </div>
-        </div>
+        <button class="btn btn-start lobby-start-btn" id="btn-start" disabled>🍑 יאללה מתחילים!</button>
+        <p class="lobby-player-count"><span id="player-count">0</span>/8 שחקנים</p>
+        <p class="spectator-info" id="spectator-info" style="display:none">👀 <span id="spectator-count">0</span> צופים</p>
       </div>
 
-      <!-- Player podiums at bottom -->
-      <div class="lobby-stage">
-        <div class="podiums-row" id="podiums-row">
-          <div class="podium-slot" data-slot="0">
-            <div class="podium-character"></div>
-            <div class="podium-name-tag"></div>
-            <div class="podium-base" style="background: var(--cyan);"></div>
+      <!-- RIGHT SIDE: Circle of 8 player slots -->
+      <div class="lobby-right">
+        <div class="slots-circle">
+          <div class="circle-slot" data-slot="0" style="--angle: 0deg;">
+            <div class="circle-slot-inner">
+              <div class="circle-character"></div>
+              <div class="circle-label">Join game!</div>
+            </div>
+            <div class="circle-name"></div>
           </div>
-          <div class="podium-slot" data-slot="1">
-            <div class="podium-character"></div>
-            <div class="podium-name-tag"></div>
-            <div class="podium-base" style="background: var(--pink);"></div>
+          <div class="circle-slot" data-slot="1" style="--angle: 45deg;">
+            <div class="circle-slot-inner">
+              <div class="circle-character"></div>
+              <div class="circle-label">Join game!</div>
+            </div>
+            <div class="circle-name"></div>
           </div>
-          <div class="podium-slot" data-slot="2">
-            <div class="podium-character"></div>
-            <div class="podium-name-tag"></div>
-            <div class="podium-base" style="background: var(--yellow);"></div>
+          <div class="circle-slot" data-slot="2" style="--angle: 90deg;">
+            <div class="circle-slot-inner">
+              <div class="circle-character"></div>
+              <div class="circle-label">Join game!</div>
+            </div>
+            <div class="circle-name"></div>
           </div>
-          <div class="podium-slot" data-slot="3">
-            <div class="podium-character"></div>
-            <div class="podium-name-tag"></div>
-            <div class="podium-base" style="background: var(--neon-green);"></div>
+          <div class="circle-slot" data-slot="3" style="--angle: 135deg;">
+            <div class="circle-slot-inner">
+              <div class="circle-character"></div>
+              <div class="circle-label">Join game!</div>
+            </div>
+            <div class="circle-name"></div>
           </div>
-          <div class="podium-slot" data-slot="4">
-            <div class="podium-character"></div>
-            <div class="podium-name-tag"></div>
-            <div class="podium-base" style="background: var(--orange);"></div>
+          <div class="circle-slot" data-slot="4" style="--angle: 180deg;">
+            <div class="circle-slot-inner">
+              <div class="circle-character"></div>
+              <div class="circle-label">Join game!</div>
+            </div>
+            <div class="circle-name"></div>
           </div>
-          <div class="podium-slot" data-slot="5">
-            <div class="podium-character"></div>
-            <div class="podium-name-tag"></div>
-            <div class="podium-base" style="background: var(--purple);"></div>
+          <div class="circle-slot" data-slot="5" style="--angle: 225deg;">
+            <div class="circle-slot-inner">
+              <div class="circle-character"></div>
+              <div class="circle-label">Join game!</div>
+            </div>
+            <div class="circle-name"></div>
           </div>
-          <div class="podium-slot" data-slot="6">
-            <div class="podium-character"></div>
-            <div class="podium-name-tag"></div>
-            <div class="podium-base" style="background: var(--mint);"></div>
+          <div class="circle-slot" data-slot="6" style="--angle: 270deg;">
+            <div class="circle-slot-inner">
+              <div class="circle-character"></div>
+              <div class="circle-label">Join game!</div>
+            </div>
+            <div class="circle-name"></div>
           </div>
-          <div class="podium-slot" data-slot="7">
-            <div class="podium-character"></div>
-            <div class="podium-name-tag"></div>
-            <div class="podium-base" style="background: var(--cream);"></div>
+          <div class="circle-slot" data-slot="7" style="--angle: 315deg;">
+            <div class="circle-slot-inner">
+              <div class="circle-character"></div>
+              <div class="circle-label">Join game!</div>
+            </div>
+            <div class="circle-name"></div>
           </div>
-        </div>
-      </div>
-
-      <!-- Bottom bar: start button left, spectator info right -->
-      <div class="lobby-bottom">
-        <div class="lobby-bottom-left">
-          <button class="btn btn-start" id="btn-start" disabled>🍑 יאללה מתחילים!</button>
-          <p class="lobby-player-count"><span id="player-count">0</span>/8 שחקנים</p>
-        </div>
-        <div class="lobby-bottom-right">
-          <p class="spectator-info" id="spectator-info" style="display:none">👀 <span id="spectator-count">0</span> צופים</p>
-          <p class="lobby-audience-text">מעל 8 שחקנים? הצטרפו כצופים!</p>
         </div>
       </div>
     </div>
@@ -104,7 +107,7 @@
     </div>
   </div>
 
-  <!-- WRITING PHASE -->
+    <!-- WRITING PHASE -->
   <div id="screen-writing" class="screen">
     <div class="writing-screen">
       <div class="writing-timer-corner" id="write-timer"></div>

@@ -1681,190 +1681,195 @@ body {
   width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: column;
-  position: relative;
+  flex-direction: row;
 }
 
-/* Top bar */
-.lobby-top {
+/* Left side: logo + join info */
+.lobby-left {
+  flex: 0 0 38%;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 20px 30px;
-  z-index: 5;
-}
-
-.lobby-top-left {
-  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  gap: 20px;
 }
 
 .lobby-logo {
-  width: 250px;
+  width: 280px;
   height: auto;
   filter: drop-shadow(0 4px 15px rgba(0,0,0,0.3));
 }
 
-.lobby-top-right {
-  text-align: left;
-}
-
-.lobby-join-info {
-  background: rgba(0,0,0,0.4);
-  border-radius: var(--radius);
-  padding: 15px 25px;
-  backdrop-filter: blur(8px);
+.lobby-join-box {
   text-align: center;
 }
 
 .lobby-join-label {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: var(--text-dim);
   margin-bottom: 3px;
 }
 
 .lobby-join-url {
   font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--cyan);
   direction: ltr;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .lobby-code-label {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: var(--text-dim);
 }
 
 .lobby-room-code {
   font-family: 'Arial Black', 'Fredoka', sans-serif;
-  font-size: 3.5rem;
+  font-size: 4rem;
   font-weight: 900;
   color: var(--neon-green);
-  letter-spacing: 15px;
+  letter-spacing: 18px;
   direction: ltr;
   line-height: 1;
 }
 
-/* Stage area - podiums */
-.lobby-stage {
-  flex: 1;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0 20px 0;
-}
-
-.podiums-row {
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  gap: 8px;
-  width: 100%;
-  max-width: 950px;
-}
-
-.podium-slot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  max-width: 110px;
-  min-width: 80px;
-}
-
-.podium-character {
-  font-size: 3rem;
-  height: 60px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  opacity: 0;
-  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-.podium-character.filled {
-  opacity: 1;
-  animation: podiumDrop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-@keyframes podiumDrop {
-  0% { transform: translateY(-80px) scale(0.5); opacity: 0; }
-  60% { transform: translateY(10px) scale(1.1); }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
-}
-
-.podium-name-tag {
-  font-family: var(--font-display);
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-dark);
-  background: var(--cream);
-  padding: 3px 8px;
-  border-radius: 4px;
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  opacity: 0;
-  min-height: 20px;
-  text-align: center;
-  margin-bottom: 4px;
-  transition: opacity 0.3s;
-}
-
-.podium-name-tag.filled {
-  opacity: 1;
-}
-
-.podium-base {
-  width: 100%;
-  height: 40px;
-  border-radius: 8px 8px 0 0;
-  opacity: 0.7;
-  border: 2px solid rgba(0,0,0,0.2);
-  border-bottom: none;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
-}
-
-.podium-slot.occupied .podium-base {
-  opacity: 1;
-}
-
-.podium-slot.disconnected {
-  opacity: 0.4;
-  filter: grayscale(1);
-}
-
-/* Bottom bar */
-.lobby-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 30px;
-  background: rgba(0,0,0,0.3);
-  z-index: 5;
-}
-
-.lobby-bottom-left {
-  display: flex;
-  align-items: center;
-  gap: 15px;
+.lobby-start-btn {
+  margin-top: 10px;
 }
 
 .lobby-player-count {
   font-family: var(--font-display);
   font-size: 1rem;
   color: var(--text-dim);
+  margin-top: 5px;
 }
 
-.lobby-bottom-right {
-  text-align: left;
+/* Right side: circle of 8 slots */
+.lobby-right {
+  flex: 0 0 62%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
 
-.lobby-audience-text {
-  font-size: 0.85rem;
+.slots-circle {
+  position: relative;
+  width: 420px;
+  height: 420px;
+}
+
+.circle-slot {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  /* Position each slot in a circle using --angle */
+  left: calc(50% - 50px + cos(var(--angle)) * 160px);
+  top: calc(50% - 50px + sin(var(--angle)) * 160px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.circle-slot-inner {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: rgba(245, 240, 225, 0.15);
+  border: 3px solid rgba(245, 240, 225, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  transition: all 0.4s;
+  backdrop-filter: blur(4px);
+}
+
+.circle-slot.occupied .circle-slot-inner {
+  background: rgba(245, 240, 225, 0.25);
+  border-color: var(--neon-green);
+  box-shadow: 0 0 20px rgba(126, 200, 160, 0.3);
+  animation: slotPopIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes slotPopIn {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.circle-slot.disconnected {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.circle-character {
+  font-size: 2.8rem;
+  line-height: 1;
+  display: none;
+}
+
+.circle-label {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
   color: var(--text-dim);
+  text-align: center;
+  opacity: 0.6;
+}
+
+.circle-name {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--cream);
+  margin-top: 4px;
+  text-align: center;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: rgba(0,0,0,0.5);
+  padding: 2px 8px;
+  border-radius: 4px;
+  min-height: 0;
+}
+
+.circle-name:empty {
+  display: none;
+}
+
+/* Responsive: stack on narrow screens */
+@media (max-width: 800px) {
+  .lobby-layout {
+    flex-direction: column;
+  }
+  .lobby-left {
+    flex: 0 0 auto;
+    padding: 15px;
+    gap: 10px;
+  }
+  .lobby-logo { width: 200px; }
+  .lobby-room-code { font-size: 3rem; }
+  .lobby-right {
+    flex: 1;
+  }
+  .slots-circle {
+    width: 300px;
+    height: 300px;
+  }
+  .circle-slot {
+    left: calc(50% - 40px + cos(var(--angle)) * 110px);
+    top: calc(50% - 40px + sin(var(--angle)) * 110px);
+    width: 80px;
+    height: 80px;
+  }
+  .circle-slot-inner {
+    width: 70px;
+    height: 70px;
+  }
+  .circle-character { font-size: 2rem; }
 }
 
 /* ============================================
