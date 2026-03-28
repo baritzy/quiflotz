@@ -199,7 +199,7 @@ body {
 }
 
 .room-code {
-  font-family: 'Arial Black', 'Fredoka', sans-serif;
+  font-family: var(--font-display);
   font-size: 4rem;
   font-weight: 900;
   color: var(--neon-green);
@@ -210,7 +210,7 @@ body {
 }
 
 .join-url {
-  font-family: 'Arial', sans-serif;
+  font-family: var(--font-body);
   font-size: 1.1rem;
   color: var(--cyan);
   font-weight: 700;
@@ -1727,7 +1727,7 @@ body {
 }
 
 .lobby-room-code {
-  font-family: 'Arial Black', 'Fredoka', sans-serif;
+  font-family: var(--font-display);
   font-size: 4rem;
   font-weight: 900;
   color: var(--neon-green);
