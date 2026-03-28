@@ -3,6 +3,15 @@
    Vibe: Childish, gross, colorful, fun 💨🍑
    ============================================ */
 
+@font-face {
+  font-family: 'Quiflotz';
+  src: url('/assets/fonts/Quiflotz.woff2?v=2') format('woff2'),
+       url('/assets/fonts/Quiflotz.ttf?v=2') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* Comic art palette — mint green, purple, cream */
   --pink: #c44569;
@@ -21,8 +30,8 @@
   --text: #f5f0e1;
   --text-dim: rgba(245, 240, 225, 0.65);
   --text-dark: #2d1b3d;
-  --font-display: 'Luckiest Guy', 'Rubik', cursive;
-  --font-body: 'Rubik', sans-serif;
+  --font-display: 'Quiflotz', 'Luckiest Guy', 'Rubik', cursive;
+  --font-body: 'Quiflotz', 'Rubik', sans-serif;
   --stroke-sm: 1.5px;
   --stroke-md: 2.5px;
   --stroke-lg: 3.5px;
@@ -36,38 +45,17 @@
   box-sizing: border-box;
 }
 
-/* Quiflotz bubble font style: white fill + black stroke on ALL text */
-h1, h2, h3, .btn, .room-code, .lobby-room-code,
-.round-badge, .multiplier-badge, .prompt-text,
-.matchup-answer-text, .result-percentage, .result-points,
-.final-title, .winner-name, .scoreboard-title,
-.final-score-value, .quiflotz-text, .quiflotz-sub,
-.splash-text, .section-title, .lobby-join-url,
-.lobby-code-label, .lobby-room-code {
-  color: white;
-  -webkit-text-stroke: var(--stroke-md) rgba(0,0,0,0.7);
-  paint-order: stroke fill;
-  text-shadow: 2px 3px 0 rgba(0,0,0,0.25);
-}
+/* Custom Quiflotz font already has white fill + black outline built in.
+   Only add text-shadow for depth, no extra stroke needed. */
 
-/* Extra thick stroke for big display text */
-.room-code, .lobby-room-code, .final-title,
-.scoreboard-title, .quiflotz-text, .splash-text {
-  -webkit-text-stroke: var(--stroke-lg) rgba(0,0,0,0.8);
-  text-shadow: 3px 4px 0 rgba(0,0,0,0.3);
-}
-
-/* Dark text elements (on light backgrounds) keep dark color */
+/* Dark text elements (on light backgrounds) - use fallback font */
 .prompt-text, .matchup-answer-text, .result-answer-text {
   color: var(--text-dark);
-  -webkit-text-stroke: 0;
-  text-shadow: none;
 }
 
-/* Input fields: no stroke */
+/* Input fields: use fallback font for readability */
 input, textarea, select {
-  -webkit-text-stroke: 0;
-  paint-order: normal;
+  font-family: 'Rubik', sans-serif;
   color: var(--text);
 }
 
@@ -80,10 +68,8 @@ body {
   font-family: var(--font-body);
   font-weight: 700;
   background: var(--bg-dark);
-  color: white;
+  color: var(--text);
   direction: rtl;
-  -webkit-text-stroke: var(--stroke-sm) rgba(0,0,0,0.6);
-  paint-order: stroke fill;
 }
 
 /* Background: comic pattern image */
