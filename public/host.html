@@ -13,7 +13,7 @@
 </head>
 <body class="host-body">
 
-  <!-- SPLASH: tap to start (enables audio) -->
+  <!-- SPLASH -->
   <div id="screen-splash" class="screen active" onclick="dismissSplash()">
     <div class="splash-container">
       <img src="/assets/img/logo.png" alt="Quiflotz" class="splash-logo">
@@ -24,7 +24,7 @@
   <!-- LOBBY -->
   <div id="screen-lobby" class="screen">
     <div class="lobby-container">
-      <img src="/assets/img/logo.png" alt="Quiflotz" class="game-logo-img">
+      <img src="/assets/img/logo.png" alt="Quiflotz" class="game-logo-img breathing">
       <div class="room-code-box">
         <p class="room-code-label">קוד החדר:</p>
         <div class="room-code" id="room-code">----</div>
@@ -32,30 +32,52 @@
       </div>
       <div class="players-area">
         <h2 class="section-title">שחקנים <span id="player-count">0</span>/8</h2>
-        <div class="players-grid" id="players-grid"></div>
+        <div class="player-wheel" id="player-wheel">
+          <div class="wheel-slot" data-slot="0"><div class="slot-empty">?</div></div>
+          <div class="wheel-slot" data-slot="1"><div class="slot-empty">?</div></div>
+          <div class="wheel-slot" data-slot="2"><div class="slot-empty">?</div></div>
+          <div class="wheel-slot" data-slot="3"><div class="slot-empty">?</div></div>
+          <div class="wheel-slot" data-slot="4"><div class="slot-empty">?</div></div>
+          <div class="wheel-slot" data-slot="5"><div class="slot-empty">?</div></div>
+          <div class="wheel-slot" data-slot="6"><div class="slot-empty">?</div></div>
+          <div class="wheel-slot" data-slot="7"><div class="slot-empty">?</div></div>
+        </div>
         <p class="spectator-info" id="spectator-info" style="display:none">👀 <span id="spectator-count">0</span> צופים</p>
       </div>
       <button class="btn btn-start" id="btn-start" disabled>🍑 יאללה מתחילים!</button>
     </div>
-    <!-- Volume controls -->
     <div class="volume-controls" id="volume-controls">
       <button class="mute-btn" id="mute-btn" onclick="toggleMute()">🔊</button>
       <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.05" value="0.5" oninput="setVolume(this.value)">
     </div>
   </div>
 
-  <!-- WRITING PHASE (sub-rounds 1 & 2) -->
+  <!-- WRITING PHASE -->
   <div id="screen-writing" class="screen">
-    <div class="phase-container">
-      <div class="sub-round-header">
-        <span class="round-badge">סיבוב <span id="write-sub">1</span>/3</span>
+    <div class="writing-screen">
+      <div class="writing-timer-corner" id="write-timer"></div>
+      <div class="writing-round-info">
+        <span class="round-badge breathing-slow">סיבוב <span id="write-sub">1</span>/3</span>
         <span class="multiplier-badge" id="write-multiplier">x1</span>
       </div>
-      <img src="/assets/img/mascot.png" alt="" class="mascot-img">
-      <h2>השחקנים כותבים תשובות...</h2>
-      <div class="circle-timer-container" id="write-timer"></div>
-      <div class="waiting-text">📝 <span id="answer-progress">0/0</span> תשובות</div>
-      <div class="waiting-fart" id="waiting-fart">💨</div>
+      <div class="writing-center">
+        <img src="/assets/img/mascot.png" alt="" class="mascot-img breathing">
+        <h2 id="writing-status-text">השחקנים כותבים תשובות...</h2>
+        <div class="waiting-text">📝 <span id="answer-progress">0/0</span> תשובות</div>
+      </div>
+      <div class="writing-prompt-area" id="writing-prompt-area" style="display:none">
+        <div class="prompt-card"><div class="prompt-text" id="writing-prompt-text"></div></div>
+      </div>
+      <div class="avatar-floor" id="avatar-floor"></div>
+    </div>
+  </div>
+
+  <!-- PROMPT REVEAL -->
+  <div id="screen-prompt-reveal" class="screen">
+    <div class="phase-container prompt-reveal-container">
+      <div class="prompt-reveal-big">
+        <div class="prompt-card large"><div class="prompt-text" id="reveal-prompt-text"></div></div>
+      </div>
     </div>
   </div>
 
@@ -66,12 +88,12 @@
         <span class="round-badge">משחק <span id="matchup-num">1</span>/<span id="matchup-total">4</span></span>
         <span class="multiplier-badge" id="matchup-multiplier">x1</span>
       </div>
-      <div class="prompt-card"><div class="prompt-text" id="matchup-prompt"></div></div>
+      <div class="prompt-card small"><div class="prompt-text" id="matchup-prompt"></div></div>
       <div class="matchup-arena">
         <div class="matchup-answer left" id="matchup-a1">
           <div class="matchup-answer-text" id="matchup-a1-text"></div>
         </div>
-        <div class="matchup-vs">VS</div>
+        <div class="matchup-vs"><img src="/assets/img/vs-badge.png" alt="VS" class="vs-badge-img breathing-slow"></div>
         <div class="matchup-answer right" id="matchup-a2">
           <div class="matchup-answer-text" id="matchup-a2-text"></div>
         </div>
@@ -89,51 +111,25 @@
         <div class="matchup-result-side left" id="result-left">
           <div class="result-player-name" id="result-name1"></div>
           <div class="result-answer-text" id="result-text1"></div>
+          <div class="result-voters-area" id="result-voters1"></div>
+          <div class="result-percentage hidden" id="result-pct1">50%</div>
           <div class="result-bar-container">
             <div class="result-bar left-bar" id="result-bar1"></div>
           </div>
-          <div class="result-percentage" id="result-pct1">50%</div>
           <div class="result-points" id="result-pts1">+0</div>
         </div>
         <div class="matchup-result-side right" id="result-right">
           <div class="result-player-name" id="result-name2"></div>
           <div class="result-answer-text" id="result-text2"></div>
+          <div class="result-voters-area" id="result-voters2"></div>
+          <div class="result-percentage hidden" id="result-pct2">50%</div>
           <div class="result-bar-container">
             <div class="result-bar right-bar" id="result-bar2"></div>
           </div>
-          <div class="result-percentage" id="result-pct2">50%</div>
           <div class="result-points" id="result-pts2">+0</div>
         </div>
       </div>
       <button class="btn btn-next" id="btn-next-matchup">הבא ➡️</button>
-    </div>
-  </div>
-
-  <!-- FINAL ROUND WRITING (sub-round 3) -->
-  <div id="screen-final-write" class="screen">
-    <div class="phase-container">
-      <div class="sub-round-header">
-        <span class="round-badge">🔥 סיבוב אחרון!</span>
-        <span class="multiplier-badge">x3</span>
-      </div>
-      <div class="prompt-card"><div class="prompt-text" id="final-prompt-text"></div></div>
-      <h2>כל השחקנים עונים על אותו פרומפט!</h2>
-      <div class="circle-timer-container" id="final-write-timer"></div>
-      <div class="waiting-text">📝 <span id="final-write-progress">0/0</span> תשובות</div>
-    </div>
-  </div>
-
-  <!-- FINAL ROUND VOTING -->
-  <div id="screen-final-vote" class="screen">
-    <div class="phase-container">
-      <div class="sub-round-header">
-        <span class="round-badge">🔥 הצביעו! (3 הצבעות לכל אחד)</span>
-        <span class="multiplier-badge">x3</span>
-      </div>
-      <div class="prompt-card small"><div class="prompt-text" id="final-vote-prompt"></div></div>
-      <div class="final-answers-grid" id="final-answers-grid"></div>
-      <div class="circle-timer-container" id="final-vote-timer"></div>
-      <div class="waiting-text">🗳️ <span id="final-vote-count">0</span> הצביעו</div>
     </div>
   </div>
 
@@ -145,8 +141,15 @@
         <span class="multiplier-badge">x3</span>
       </div>
       <div class="prompt-card small"><div class="prompt-text" id="final-result-prompt"></div></div>
+      <div class="final-reveal-card" id="final-reveal-card" style="display:none">
+        <div class="final-reveal-answer" id="final-reveal-answer"></div>
+        <div class="final-reveal-voters" id="final-reveal-voters"></div>
+        <div class="final-reveal-pct hidden" id="final-reveal-pct"></div>
+        <div class="final-reveal-player" id="final-reveal-player"></div>
+        <div class="final-reveal-points" id="final-reveal-points"></div>
+      </div>
       <div class="results-list" id="final-results-list"></div>
-      <button class="btn btn-next" id="btn-after-final">טבלת ניקוד ➡️</button>
+      <button class="btn btn-next" id="btn-after-final" style="display:none">טבלת ניקוד ➡️</button>
     </div>
   </div>
 

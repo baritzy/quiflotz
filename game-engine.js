@@ -26,9 +26,9 @@ class GameEngine {
       usedPromptIds: new Set(),
       timer: null,
       settings: {
-        writeTime: 30,
-        matchupVoteTime: 15,
-        finalVoteTime: 25,
+        writeTime: 90,
+        matchupVoteTime: 10,
+        finalVoteTime: 15,
         maxPlayers: 8
       }
     };

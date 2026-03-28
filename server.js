@@ -93,9 +93,9 @@ io.on('connection', (socket) => {
 
     room.state = 'playing';
     room.mainRound++;
-    // Timers: 55s for rounds 1&2 (two prompts), 35s for round 3 (one prompt)
-    room.settings.writeTime = 55;
-    room.settings.finalWriteTime = 35;
+    // Timers: 90s for rounds 1&2 (two prompts), 45s for round 3 (one prompt)
+    room.settings.writeTime = 90;
+    room.settings.finalWriteTime = 45;
     startSubRound(room, 1);
   });
 
@@ -110,6 +110,19 @@ io.on('connection', (socket) => {
     answers.forEach(({ matchupIndex, text }) => {
       engine.submitMatchupAnswer(room, socket.id, matchupIndex, text.trim().substring(0, 100));
     });
+
+    // Check if this player finished all their prompts
+    const playerProgress = engine.getPlayerAnswerCount(room, socket.id);
+    if (playerProgress.submitted >= playerProgress.total) {
+      const player = room.players.get(socket.id);
+      const elapsed = Math.floor((Date.now() - (room.writeStartTime || Date.now())) / 1000);
+      const timeRemaining = room.settings.writeTime - elapsed;
+      io.to(room.hostId).emit('player-finished-writing', {
+        playerId: socket.id,
+        playerName: player ? player.name : '?',
+        timeRemaining: Math.max(0, timeRemaining)
+      });
+    }
 
     // Notify host of progress
     const progress = engine.getTotalAnswerProgress(room);
@@ -181,6 +194,16 @@ io.on('connection', (socket) => {
     if (!room || room.phase !== 'final-write') return;
 
     engine.submitFinalAnswer(room, socket.id, answer.trim().substring(0, 100));
+
+    const player = room.players.get(socket.id);
+    const elapsed = Math.floor((Date.now() - (room.writeStartTime || Date.now())) / 1000);
+    const writeTime = room.settings.finalWriteTime || 45;
+    const timeRemaining = writeTime - elapsed;
+    io.to(room.hostId).emit('player-finished-writing', {
+      playerId: socket.id,
+      playerName: player ? player.name : '?',
+      timeRemaining: Math.max(0, timeRemaining)
+    });
 
     const activePlayers = engine.getActivePlayers(room);
     const submitted = room.finalAnswers.size;
@@ -264,13 +287,17 @@ function startSubRound(room, subRoundNum) {
     room.phase = 'writing';
     engine.generateMatchups(room, prompts);
 
-    // Tell host
+    room.writeStartTime = Date.now();
+
+    // Tell host — include player list for avatar display
+    const activePlayers = engine.getActivePlayers(room);
     io.to(room.hostId).emit('sub-round-start', {
       mainRound: room.mainRound,
       subRound: subRoundNum,
       multiplier: room.multiplier,
       matchupCount: room.matchups.length,
-      writeTime: room.settings.writeTime
+      writeTime: room.settings.writeTime,
+      players: activePlayers.map((p, i) => ({ id: p.id, name: p.name, index: i }))
     });
 
     // Send each player their 2 prompts
@@ -302,13 +329,16 @@ function startSubRound(room, subRoundNum) {
     room.phase = 'final-write';
     engine.setupFinalRound(room, prompts);
 
-    const writeTime = room.settings.finalWriteTime || 35;
+    room.writeStartTime = Date.now();
+    const writeTime = room.settings.finalWriteTime || 45;
+    const activePlayersList = engine.getActivePlayers(room);
     const data = {
       mainRound: room.mainRound,
       subRound: 3,
       multiplier: 3,
       prompt: room.finalPrompt,
-      writeTime
+      writeTime,
+      players: activePlayersList.map((p, i) => ({ id: p.id, name: p.name, index: i }))
     };
 
     io.to(room.hostId).emit('final-round-start', data);
