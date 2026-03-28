@@ -21,8 +21,11 @@
   --text: #f5f0e1;
   --text-dim: rgba(245, 240, 225, 0.65);
   --text-dark: #2d1b3d;
-  --font-display: 'Bangers', 'Secular One', cursive;
-  --font-body: 'Secular One', sans-serif;
+  --font-display: 'Luckiest Guy', 'Rubik', cursive;
+  --font-body: 'Rubik', sans-serif;
+  --stroke-sm: 1.5px;
+  --stroke-md: 2.5px;
+  --stroke-lg: 3.5px;
   --radius: 20px;
   --radius-sm: 12px;
 }
@@ -33,6 +36,41 @@
   box-sizing: border-box;
 }
 
+/* Quiflotz bubble font style: white fill + black stroke on ALL text */
+h1, h2, h3, .btn, .room-code, .lobby-room-code,
+.round-badge, .multiplier-badge, .prompt-text,
+.matchup-answer-text, .result-percentage, .result-points,
+.final-title, .winner-name, .scoreboard-title,
+.final-score-value, .quiflotz-text, .quiflotz-sub,
+.splash-text, .section-title, .lobby-join-url,
+.lobby-code-label, .lobby-room-code {
+  color: white;
+  -webkit-text-stroke: var(--stroke-md) rgba(0,0,0,0.7);
+  paint-order: stroke fill;
+  text-shadow: 2px 3px 0 rgba(0,0,0,0.25);
+}
+
+/* Extra thick stroke for big display text */
+.room-code, .lobby-room-code, .final-title,
+.scoreboard-title, .quiflotz-text, .splash-text {
+  -webkit-text-stroke: var(--stroke-lg) rgba(0,0,0,0.8);
+  text-shadow: 3px 4px 0 rgba(0,0,0,0.3);
+}
+
+/* Dark text elements (on light backgrounds) keep dark color */
+.prompt-text, .matchup-answer-text, .result-answer-text {
+  color: var(--text-dark);
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+}
+
+/* Input fields: no stroke */
+input, textarea, select {
+  -webkit-text-stroke: 0;
+  paint-order: normal;
+  color: var(--text);
+}
+
 html, body {
   height: 100%;
   overflow: hidden;
@@ -40,9 +78,12 @@ html, body {
 
 body {
   font-family: var(--font-body);
+  font-weight: 700;
   background: var(--bg-dark);
-  color: var(--text);
+  color: white;
   direction: rtl;
+  -webkit-text-stroke: var(--stroke-sm) rgba(0,0,0,0.6);
+  paint-order: stroke fill;
 }
 
 /* Background: comic pattern image */
