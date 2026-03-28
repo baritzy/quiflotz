@@ -86,9 +86,22 @@ gameMusic.preload = 'auto';
 
 function dismissSplash() {
   audioUnlocked = true;
-  lobbyMusic.play().then(() => console.log('Lobby music started')).catch(e => {
-    setTimeout(() => lobbyMusic.play().catch(() => {}), 100);
-  });
+
+  // Try to play with multiple retries for mobile/strict browsers
+  function tryPlay() {
+    lobbyMusic.play().then(() => {
+      console.log('Lobby music started');
+    }).catch(e => {
+      console.log('Music play attempt failed:', e.message);
+    });
+  }
+
+  tryPlay();
+  // Retry after short delays in case first attempt fails
+  setTimeout(tryPlay, 300);
+  setTimeout(tryPlay, 1000);
+  setTimeout(tryPlay, 3000);
+
   showScreen('lobby');
 }
 window.dismissSplash = dismissSplash;
@@ -164,22 +177,26 @@ function updateLobby(players, spectatorCount) {
     }
   });
 
-  // Update wheel slots
-  const slots = document.querySelectorAll('.wheel-slot');
+  // Update podium slots
+  const slots = document.querySelectorAll('.podium-slot');
   slots.forEach((slot, i) => {
+    const charEl = slot.querySelector('.podium-character');
+    const nameEl = slot.querySelector('.podium-name-tag');
     const player = players[i];
+
     if (player) {
       const avatar = AVATARS[i % 8];
-      slot.innerHTML = `
-        <div class="slot-filled pop-in">
-          <div class="slot-avatar">${avatar.emoji}</div>
-          <div class="slot-name">${esc(player.name)}</div>
-        </div>
-      `;
+      charEl.textContent = avatar.emoji;
+      charEl.className = 'podium-character filled breathing-slow';
+      nameEl.textContent = player.name;
+      nameEl.className = 'podium-name-tag filled';
       slot.classList.add('occupied');
       slot.classList.toggle('disconnected', !player.connected);
     } else {
-      slot.innerHTML = `<div class="slot-empty">?</div>`;
+      charEl.textContent = '';
+      charEl.className = 'podium-character';
+      nameEl.textContent = '';
+      nameEl.className = 'podium-name-tag';
       slot.classList.remove('occupied', 'disconnected');
     }
   });

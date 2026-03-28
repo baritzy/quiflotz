@@ -23,29 +23,81 @@
 
   <!-- LOBBY -->
   <div id="screen-lobby" class="screen">
-    <div class="lobby-container">
-      <img src="/assets/img/logo.png" alt="Quiflotz" class="game-logo-img breathing">
-      <div class="room-code-box">
-        <p class="room-code-label">קוד החדר:</p>
-        <div class="room-code" id="room-code">----</div>
-        <p class="join-url" id="join-url">היכנסו מהטלפון לאותו כתובת</p>
-      </div>
-      <div class="players-area">
-        <h2 class="section-title">שחקנים <span id="player-count">0</span>/8</h2>
-        <div class="player-wheel" id="player-wheel">
-          <div class="wheel-slot" data-slot="0"><div class="slot-empty">?</div></div>
-          <div class="wheel-slot" data-slot="1"><div class="slot-empty">?</div></div>
-          <div class="wheel-slot" data-slot="2"><div class="slot-empty">?</div></div>
-          <div class="wheel-slot" data-slot="3"><div class="slot-empty">?</div></div>
-          <div class="wheel-slot" data-slot="4"><div class="slot-empty">?</div></div>
-          <div class="wheel-slot" data-slot="5"><div class="slot-empty">?</div></div>
-          <div class="wheel-slot" data-slot="6"><div class="slot-empty">?</div></div>
-          <div class="wheel-slot" data-slot="7"><div class="slot-empty">?</div></div>
+    <div class="lobby-layout">
+      <!-- Top bar: logo left, room code right -->
+      <div class="lobby-top">
+        <div class="lobby-top-left">
+          <img src="/assets/img/logo.png" alt="Quiflotz" class="lobby-logo breathing">
         </div>
-        <p class="spectator-info" id="spectator-info" style="display:none">👀 <span id="spectator-count">0</span> צופים</p>
+        <div class="lobby-top-right">
+          <div class="lobby-join-info">
+            <div class="lobby-join-label">היכנסו דרך</div>
+            <div class="lobby-join-url" id="join-url">quiflotz.onrender.com</div>
+            <div class="lobby-code-label">קוד החדר:</div>
+            <div class="lobby-room-code" id="room-code">----</div>
+          </div>
+        </div>
       </div>
-      <button class="btn btn-start" id="btn-start" disabled>🍑 יאללה מתחילים!</button>
+
+      <!-- Player podiums at bottom -->
+      <div class="lobby-stage">
+        <div class="podiums-row" id="podiums-row">
+          <div class="podium-slot" data-slot="0">
+            <div class="podium-character"></div>
+            <div class="podium-name-tag"></div>
+            <div class="podium-base" style="background: var(--cyan);"></div>
+          </div>
+          <div class="podium-slot" data-slot="1">
+            <div class="podium-character"></div>
+            <div class="podium-name-tag"></div>
+            <div class="podium-base" style="background: var(--pink);"></div>
+          </div>
+          <div class="podium-slot" data-slot="2">
+            <div class="podium-character"></div>
+            <div class="podium-name-tag"></div>
+            <div class="podium-base" style="background: var(--yellow);"></div>
+          </div>
+          <div class="podium-slot" data-slot="3">
+            <div class="podium-character"></div>
+            <div class="podium-name-tag"></div>
+            <div class="podium-base" style="background: var(--neon-green);"></div>
+          </div>
+          <div class="podium-slot" data-slot="4">
+            <div class="podium-character"></div>
+            <div class="podium-name-tag"></div>
+            <div class="podium-base" style="background: var(--orange);"></div>
+          </div>
+          <div class="podium-slot" data-slot="5">
+            <div class="podium-character"></div>
+            <div class="podium-name-tag"></div>
+            <div class="podium-base" style="background: var(--purple);"></div>
+          </div>
+          <div class="podium-slot" data-slot="6">
+            <div class="podium-character"></div>
+            <div class="podium-name-tag"></div>
+            <div class="podium-base" style="background: var(--mint);"></div>
+          </div>
+          <div class="podium-slot" data-slot="7">
+            <div class="podium-character"></div>
+            <div class="podium-name-tag"></div>
+            <div class="podium-base" style="background: var(--cream);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom bar: start button left, spectator info right -->
+      <div class="lobby-bottom">
+        <div class="lobby-bottom-left">
+          <button class="btn btn-start" id="btn-start" disabled>🍑 יאללה מתחילים!</button>
+          <p class="lobby-player-count"><span id="player-count">0</span>/8 שחקנים</p>
+        </div>
+        <div class="lobby-bottom-right">
+          <p class="spectator-info" id="spectator-info" style="display:none">👀 <span id="spectator-count">0</span> צופים</p>
+          <p class="lobby-audience-text">מעל 8 שחקנים? הצטרפו כצופים!</p>
+        </div>
+      </div>
     </div>
+
     <div class="volume-controls" id="volume-controls">
       <button class="mute-btn" id="mute-btn" onclick="toggleMute()">🔊</button>
       <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.05" value="0.5" oninput="setVolume(this.value)">
