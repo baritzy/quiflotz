@@ -4,14 +4,14 @@ const socket = io();
 // AVATAR SYSTEM — each player gets a character
 // ============================================================
 const AVATARS = [
-  { emoji: '💩', img: 0 }, // poop with sunglasses
-  { emoji: '🧦', img: 1 }, // stinky sock
-  { emoji: '💨', img: 2 }, // gas cloud
-  { emoji: '😂', img: 3 }, // laughing face
-  { emoji: '😎', img: 4 }, // cool beans
-  { emoji: '🚽', img: 5 }, // toilet
-  { emoji: '😡', img: 6 }, // cranky cube
-  { emoji: '🪰', img: 7 }, // buzz fly
+  { name: 'תחת', img: '/assets/img/characters/char-0.png' }, // butt
+  { name: 'ענן גז', img: '/assets/img/characters/char-1.png' }, // gas cloud
+  { name: 'נייר טואלט', img: '/assets/img/characters/char-2.png' }, // toilet paper
+  { name: 'קקי', img: '/assets/img/characters/char-3.png' }, // poop
+  { name: 'אסלה', img: '/assets/img/characters/char-4.png' }, // toilet
+  { name: 'פלאנג׳ר', img: '/assets/img/characters/char-5.png' }, // plunger
+  { name: 'ספריי', img: '/assets/img/characters/char-6.png' }, // spray
+  { name: 'נקניקיה', img: '/assets/img/characters/char-7.png' }, // sausage
 ];
 
 // Track player-to-avatar mapping
@@ -28,6 +28,11 @@ function getPlayerAvatar(playerId, playerName) {
 
 function getPlayerAvatarIndex(playerId) {
   return playerAvatarMap.get(playerId) || 0;
+}
+
+function avatarImg(index, cssClass) {
+  const avatar = AVATARS[index % 8];
+  return `<img src="${avatar.img}" alt="${avatar.name}" class="avatar-img ${cssClass || ''}" />`;
 }
 
 // ============================================================
@@ -169,7 +174,7 @@ function showScreen(name) {
 socket.emit('create-room', (res) => {
   if (res.success) {
     document.getElementById('room-code').textContent = res.roomCode;
-    const url = window.location.origin;
+    const url = window.location.origin.replace(/^https?:\/\//, '');
     document.getElementById('join-url').textContent = url;
   }
 });
@@ -200,7 +205,7 @@ function updateLobby(players, spectatorCount) {
 
     if (player) {
       const avatar = AVATARS[i % 8];
-      charEl.textContent = avatar.emoji;
+      charEl.innerHTML = `<img src="${avatar.img}" alt="${avatar.name}" class="avatar-img">`;
       charEl.style.display = 'block';
       labelEl.style.display = 'none';
       nameEl.textContent = player.name;
@@ -278,7 +283,7 @@ function buildAvatarFloor(players, totalTime) {
     el.id = `floor-avatar-${p.id}`;
     el.dataset.playerId = p.id;
     el.innerHTML = `
-      <div class="floor-avatar-character">${avatar.emoji}</div>
+      <div class="floor-avatar-character"><img src="${avatar.img}" alt="${avatar.name}" class="avatar-img"></div>
       <div class="floor-avatar-name">${esc(p.name)}</div>
     `;
     floor.appendChild(el);
@@ -420,7 +425,7 @@ function showVoterAvatars(containerId, voterNames) {
     const countBadge = voteCount ? `<span class="voter-count">x${voteCount[1]}</span>` : '';
 
     return `<div class="voter-avatar pop-in" style="animation-delay: ${i * 0.15}s">
-      <div class="voter-avatar-icon">👤</div>
+      <div class="voter-avatar-icon"><img src="/assets/img/characters/char-0.png" class="avatar-img-sm"></div>
       <div class="voter-avatar-name">${esc(cleanName)}${countBadge}</div>
     </div>`;
   }).join('');
@@ -518,7 +523,7 @@ function revealNextFinalAnswer() {
     const voteCount = name.match(/\(x(\d+)\)$/);
     const countBadge = voteCount ? `<span class="voter-count">x${voteCount[1]}</span>` : '';
     return `<div class="voter-avatar pop-in" style="animation-delay: ${i * 0.15}s">
-      <div class="voter-avatar-icon">👤</div>
+      <div class="voter-avatar-icon"><img src="/assets/img/characters/char-0.png" class="avatar-img-sm"></div>
       <div class="voter-avatar-name">${esc(cleanName)}${countBadge}</div>
     </div>`;
   }).join('');
@@ -597,7 +602,7 @@ socket.on('round-complete', ({ mainRound, scores, winner }) => {
   showScreen('round-complete');
   if (winner) {
     document.getElementById('round-winner-showcase').innerHTML = `
-      <div class="winner-emoji">🍑👑</div>
+      <div class="winner-emoji"><img src="/assets/img/winner.png" class="winner-img"></div>
       <div class="winner-name">${esc(winner.name)}</div>
       <div class="winner-score">${winner.score} נקודות</div>
     `;

@@ -21,8 +21,8 @@
   --text: #f5f0e1;
   --text-dim: rgba(245, 240, 225, 0.65);
   --text-dark: #2d1b3d;
-  --font-display: 'Fredoka', 'Heebo', sans-serif;
-  --font-body: 'Heebo', sans-serif;
+  --font-display: 'Rubik', 'Fredoka', sans-serif;
+  --font-body: 'Rubik', sans-serif;
   --radius: 20px;
   --radius-sm: 12px;
 }
@@ -2119,6 +2119,41 @@ body {
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--neon-green);
+}
+
+
+/* ============================================
+   AVATAR IMAGES
+   ============================================ */
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  max-height: 80px;
+}
+
+.circle-character .avatar-img {
+  width: 55px;
+  height: 55px;
+}
+
+.floor-avatar-character .avatar-img {
+  width: 50px;
+  height: 50px;
+}
+
+.avatar-img-sm {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.winner-img {
+  width: 300px;
+  height: auto;
+  max-height: 170px;
+  object-fit: contain;
 }
 
 /* ============================================
