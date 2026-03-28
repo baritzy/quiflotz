@@ -147,6 +147,12 @@ body {
   align-items: center;
   justify-content: center;
   overflow-y: auto;
+  animation: screenFadeIn 0.4s ease;
+}
+
+@keyframes screenFadeIn {
+  0% { opacity: 0; transform: scale(0.97); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 #screen-lobby.active {
@@ -466,6 +472,16 @@ body {
   direction: ltr;
 }
 
+.char-warning {
+  color: #FF4444;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+  margin-top: 5px;
+  animation: shake 0.3s;
+}
+
 .join-form {
   margin-top: 10px;
 }
@@ -506,6 +522,9 @@ body {
 }
 
 .prompt-card.mobile {
+  background: var(--bg-card);
+  border: 2px solid var(--cyan);
+  border-radius: var(--radius);
   padding: 25px 20px;
   margin: 15px auto;
 }
@@ -1227,12 +1246,31 @@ body {
 }
 
 .matchup-answer.right {
-  /* Uses answer-card.png background, mirrored */
+  /* Mirror only the background image, not the text */
+  background: url('/assets/img/answer-card.png') center/100% 100% no-repeat;
+  direction: ltr;
+  -webkit-transform: scaleX(1);
+  transform: scaleX(1);
+}
+
+/* Use pseudo-element for mirrored background so text stays normal */
+.matchup-answer.right {
+  position: relative;
+  background: none;
+}
+
+.matchup-answer.right::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: url('/assets/img/answer-card.png') center/100% 100% no-repeat;
   transform: scaleX(-1);
+  z-index: 0;
 }
 
 .matchup-answer.right .matchup-answer-text {
-  transform: scaleX(-1); /* Un-mirror the text */
+  position: relative;
+  z-index: 1;
 }
 
 .matchup-answer.pop-in {
@@ -1510,6 +1548,92 @@ body {
   font-size: 1.1rem;
   color: var(--text-dim);
   margin-bottom: 20px;
+}
+
+/* ============================================
+   PODIUM SCOREBOARD
+   ============================================ */
+
+.podium-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 15px;
+  margin: 20px auto;
+  max-width: 600px;
+  min-height: 280px;
+}
+
+.podium-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: podiumRise 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  flex: 1;
+  max-width: 160px;
+}
+
+@keyframes podiumRise {
+  0% { transform: translateY(100px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.podium-character {
+  margin-bottom: 8px;
+}
+
+.podium-avatar-img {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3));
+}
+
+.podium-name {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cream);
+  margin-bottom: 4px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.podium-score {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--neon-green);
+  margin-bottom: 6px;
+}
+
+.podium-block {
+  width: 100%;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15px;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+}
+
+.podium-rank {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: rgba(0,0,0,0.3);
+}
+
+.scoreboard-rest {
+  margin-top: 20px;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: 10px 15px;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* ============================================
@@ -1793,13 +1917,14 @@ body {
 .circle-slot {
   position: absolute;
   width: 85px;
-  height: 85px;
+  height: 105px;
   /* Position each slot in a circle using --angle */
   left: calc(50% - 42px + cos(var(--angle)) * 135px);
-  top: calc(50% - 42px + sin(var(--angle)) * 135px);
+  top: calc(50% - 52px + sin(var(--angle)) * 135px);
   display: flex;
   flex-direction: column;
   align-items: center;
+  overflow: visible;
 }
 
 .circle-slot-inner {
@@ -1969,13 +2094,13 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 120px;
+  height: 100vh;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: 25px;
-  padding: 0 30px 15px;
-  background: linear-gradient(to top, rgba(45, 27, 61, 0.6) 0%, transparent 100%);
+  gap: 45px;
+  padding: 0 40px 15px;
+  pointer-events: none;
   z-index: 8;
 }
 
@@ -2181,6 +2306,78 @@ body {
   height: auto;
   max-height: 170px;
   object-fit: contain;
+}
+
+/* ============================================
+   SPLASH TEXT SCREEN (between phases)
+   ============================================ */
+
+.splash-text-container {
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.splash-text-content {
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: var(--cream);
+  text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  animation: splashTextIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  padding: 40px;
+}
+
+@keyframes splashTextIn {
+  0% { transform: scale(0.3) rotate(-5deg); opacity: 0; }
+  60% { transform: scale(1.15) rotate(2deg); }
+  80% { transform: scale(0.95) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* ============================================
+   PERSISTENT BAR (room code + new game)
+   ============================================ */
+
+.persistent-bar {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 200;
+  background: rgba(0,0,0,0.6);
+  padding: 6px 16px;
+  border-radius: 50px;
+  backdrop-filter: blur(10px);
+}
+
+.persistent-room-code {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--neon-green);
+  letter-spacing: 4px;
+  direction: ltr;
+}
+
+.persistent-new-game {
+  font-size: 1.1rem;
+  padding: 4px 12px;
+  border-radius: 50px;
+  background: rgba(255,255,255,0.1);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.2);
+  cursor: pointer;
+}
+
+.persistent-new-game:active {
+  transform: scale(0.95);
 }
 
 /* ============================================

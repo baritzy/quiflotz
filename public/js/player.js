@@ -82,11 +82,22 @@ function showCurrentPrompt() {
       <div class="prompt-text">${esc(p.promptText)}</div>
     </div>
     <input type="text" class="input-answer" placeholder="Write your answer..."
-      maxlength="100" autocomplete="off" dir="ltr"
+      maxlength="25" autocomplete="off" dir="ltr"
       data-matchup="${p.matchupIndex}" id="current-answer">
+    <div class="char-warning" id="char-warning" style="display:none">הגעת למספר מירבי של תווים</div>
   `;
 
-  setTimeout(() => document.getElementById('current-answer')?.focus(), 100);
+  const input = document.getElementById('current-answer');
+  input.addEventListener('input', () => {
+    const warn = document.getElementById('char-warning');
+    if (input.value.length >= 25) {
+      warn.style.display = 'block';
+    } else {
+      warn.style.display = 'none';
+    }
+  });
+
+  setTimeout(() => input?.focus(), 100);
 }
 
 document.getElementById('btn-submit-answers').addEventListener('click', submitCurrentAnswer);
@@ -165,8 +176,17 @@ socket.on('matchup-result', () => {
 socket.on('final-write-prompt', ({ prompt, writeTime }) => {
   showScreen('final-write');
   document.getElementById('p-final-prompt').textContent = prompt.text;
-  document.getElementById('input-final-answer').value = '';
-  setTimeout(() => document.getElementById('input-final-answer')?.focus(), 100);
+  const finalInput = document.getElementById('input-final-answer');
+  finalInput.value = '';
+  finalInput.addEventListener('input', () => {
+    const warn = document.getElementById('final-char-warning');
+    if (finalInput.value.length >= 25) {
+      warn.style.display = 'block';
+    } else {
+      warn.style.display = 'none';
+    }
+  });
+  setTimeout(() => finalInput?.focus(), 100);
   startGenericCountdown('p-final-write-timer', writeTime);
 });
 
@@ -310,6 +330,15 @@ socket.on('spectator-final-writing', ({ prompt }) => {
 // ============================================================
 // MISC
 // ============================================================
+
+socket.on('show-splash', ({ text }) => {
+  showScreen('between');
+  const hint = document.querySelector('#screen-between .waiting-hint');
+  if (hint) hint.textContent = text;
+});
+
+socket.on('matchup-pause', () => showScreen('between'));
+socket.on('matchup-prompt-reveal', () => showScreen('between'));
 
 socket.on('game-restarted', () => showScreen('waiting'));
 socket.on('host-left', () => { alert('ה-Host עזב 😢'); showScreen('join'); });

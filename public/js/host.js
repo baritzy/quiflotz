@@ -40,11 +40,11 @@ function avatarImg(index, cssClass) {
 // ============================================================
 const lobbyMusic = new Audio('/assets/lobby-music.mp3');
 lobbyMusic.loop = true;
-lobbyMusic.volume = 1.0;
+lobbyMusic.volume = 0.3;
 
 const gameMusic = new Audio('/assets/game-music.mp3');
 gameMusic.loop = true;
-gameMusic.volume = 0.8;
+gameMusic.volume = 0.3;
 
 let currentMusic = null;
 let isMuted = false;
@@ -163,19 +163,33 @@ function showScreen(name) {
   Object.values(screens).forEach(s => s.classList.remove('active'));
   if (screens[name]) screens[name].classList.add('active');
 
+  // Show persistent bar on all screens except splash and lobby
+  const bar = document.getElementById('persistent-bar');
+  if (bar) bar.style.display = (name === 'splash' || name === 'lobby') ? 'none' : 'flex';
+
   if (name === 'lobby') playMusic(lobbyMusic);
   else if (['writing'].includes(name)) playMusic(gameMusic);
-  else if (name === 'round-complete') { stopMusic(); playRoundCompleteMusic(); }
+  else if (name === 'round-complete') stopMusic();
 }
 
 // ============================================================
 // ROOM CREATION
 // ============================================================
+let currentRoomCode = '';
 socket.emit('create-room', (res) => {
   if (res.success) {
+    currentRoomCode = res.roomCode;
     document.getElementById('room-code').textContent = res.roomCode;
+    document.getElementById('persistent-room-code').textContent = res.roomCode;
     const url = window.location.origin.replace(/^https?:\/\//, '');
     document.getElementById('join-url').textContent = url;
+  }
+});
+
+// Persistent new game button
+document.getElementById('btn-persistent-restart').addEventListener('click', () => {
+  if (confirm('להתחיל משחק חדש?')) {
+    socket.emit('restart-game');
   }
 });
 
@@ -296,8 +310,8 @@ socket.on('player-finished-writing', ({ playerId, playerName, timeRemaining }) =
   if (!el) return;
 
   // Calculate jump height: more time remaining = higher jump
-  // Max jump = 60% of container height
-  const maxJump = 60;
+  // Max jump = 85% of viewport height (full screen range)
+  const maxJump = 85;
   const jumpPercent = (timeRemaining / currentWriteTime) * maxJump;
 
   el.style.transform = `translateY(-${jumpPercent}vh)`;
@@ -310,25 +324,33 @@ socket.on('writing-progress', ({ submitted, total }) => {
 });
 
 // ============================================================
-// PROMPT REVEAL — Show prompt big, then transition to matchup
+// SPLASH EVENTS (server-driven flow)
 // ============================================================
 
-let pendingMatchupData = null;
+socket.on('show-splash', ({ text, duration }) => {
+  document.getElementById('splash-text-content').textContent = text;
+  showScreen('splash-text');
+  playMusic(gameMusic);
+});
+
+// Matchup prompt reveal (shown separately before voting)
+socket.on('matchup-prompt-reveal', ({ promptText }) => {
+  document.getElementById('reveal-prompt-text').textContent = promptText;
+  showScreen('prompt-reveal');
+});
+
+// Matchup pause (brief pause between matchups)
+socket.on('matchup-pause', ({ index, total }) => {
+  document.getElementById('splash-text-content').textContent = `משחק ${index + 1} מתוך ${total}`;
+  showScreen('splash-text');
+});
+
+// ============================================================
+// MATCHUP VOTING — answers appear (prompt already shown separately)
+// ============================================================
 
 socket.on('matchup-show', (data) => {
-  pendingMatchupData = data;
-
-  // First: show prompt big
-  document.getElementById('reveal-prompt-text').textContent = data.promptText;
-  showScreen('prompt-reveal');
-
-  // Calculate reading time based on prompt length (min 2s, max 5s)
-  const words = data.promptText.split(' ').length;
-  const readTime = Math.min(5000, Math.max(2000, words * 400));
-
-  setTimeout(() => {
-    showMatchupScreen(data);
-  }, readTime);
+  showMatchupScreen(data);
 });
 
 function showMatchupScreen(data) {
@@ -403,10 +425,16 @@ socket.on('matchup-result', ({ result, hasQuiflotz, matchupIndex, totalMatchups,
     document.getElementById('result-bar2').style.width = result.player2.percentage + '%';
   }, 2000);
 
-  if (hasQuiflotz) showQuiflotzAnimation();
+  if (hasQuiflotz) {
+    // Show Quiflotz overlay without sound effects
+    const ov = document.getElementById('quiflotz-overlay');
+    ov.classList.remove('hidden');
+    setTimeout(() => ov.classList.add('hidden'), 3000);
+  }
 
+  // Auto-advance is handled by server — hide manual button
   const btn = document.getElementById('btn-next-matchup');
-  btn.textContent = isLastMatchup ? 'טבלת ניקוד ➡️' : 'הבא ➡️';
+  btn.style.display = 'none';
 });
 
 function showVoterAvatars(containerId, voterNames) {
@@ -440,25 +468,14 @@ document.getElementById('btn-next-matchup').addEventListener('click', () => {
 // ============================================================
 
 socket.on('final-voting-start', ({ prompt, answers, voteTime }) => {
-  // Show prompt first
-  document.getElementById('reveal-prompt-text').textContent = prompt.text;
-  showScreen('prompt-reveal');
-
-  const words = prompt.text.split(' ').length;
-  const readTime = Math.min(5000, Math.max(2000, words * 400));
-
-  // We don't show answers on host during voting in round 3
-  // Just show that voting is happening
-  setTimeout(() => {
-    showScreen('writing');
-    document.getElementById('write-sub').textContent = '3';
-    document.getElementById('write-multiplier').textContent = 'x3';
-    document.getElementById('writing-status-text').textContent = 'השחקנים כותבים תשובות...';
-    document.getElementById('writing-prompt-area').style.display = 'block';
-    document.getElementById('writing-prompt-text').textContent = prompt.text;
-    document.getElementById('answer-progress').textContent = '';
-    startCircleTimer('write-timer', voteTime);
-  }, readTime);
+  showScreen('writing');
+  document.getElementById('write-sub').textContent = '3';
+  document.getElementById('write-multiplier').textContent = 'x3';
+  document.getElementById('writing-status-text').textContent = 'השחקנים מצביעים...';
+  document.getElementById('writing-prompt-area').style.display = 'block';
+  document.getElementById('writing-prompt-text').textContent = prompt.text;
+  document.getElementById('answer-progress').textContent = '';
+  startCircleTimer('write-timer', voteTime);
 });
 
 socket.on('final-vote-progress', ({ count }) => {
@@ -582,13 +599,8 @@ socket.on('scoreboard', ({ scores, subRound, nextSubRound }) => {
     nextSubRound ? `אחרי סיבוב ${subRound}/3` : 'תוצאות סופיות';
   renderScoreboard('scoreboard-list', scores);
 
-  const btn = document.getElementById('btn-next-sub');
-  if (nextSubRound) {
-    btn.textContent = nextSubRound === 3 ? '🔥 סיבוב אחרון! ➡️' : `סיבוב ${nextSubRound}/3 ➡️`;
-    btn.style.display = 'inline-block';
-  } else {
-    btn.style.display = 'none';
-  }
+  // Auto-advance is server-driven — hide manual button
+  document.getElementById('btn-next-sub').style.display = 'none';
 });
 
 document.getElementById('btn-next-sub').addEventListener('click', () => {
@@ -608,7 +620,6 @@ socket.on('round-complete', ({ mainRound, scores, winner }) => {
     `;
   }
   renderScoreboard('round-final-scores', scores);
-  playRoundCompleteMusic();
 });
 
 document.getElementById('btn-new-round').addEventListener('click', () => socket.emit('new-round'));
@@ -629,57 +640,61 @@ socket.on('error-msg', ({ message }) => alert(message));
 
 function renderScoreboard(containerId, scores) {
   const el = document.getElementById(containerId);
-  el.innerHTML = scores.map((s, i) => {
-    const medals = ['🥇', '🥈', '🥉'];
-    const medal = medals[i] || `#${i + 1}`;
-    return `<div class="final-score-row">
-      <span class="final-rank">${medal}</span>
-      <span class="final-name">${esc(s.name)}</span>
-      <span class="final-score-value">${s.score}</span>
+
+  // Quiplash-style podium scoreboard
+  const podiumColors = ['#FFD700', '#C0C0C0', '#CD7F32']; // gold, silver, bronze
+  const podiumHeights = [180, 140, 110]; // px heights for top 3
+
+  let html = '<div class="podium-container">';
+
+  // Top 3 podiums
+  const top3 = scores.slice(0, 3);
+  // Display order: 2nd, 1st, 3rd (for visual podium layout)
+  const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3;
+  const heightOrder = top3.length >= 3 ? [podiumHeights[1], podiumHeights[0], podiumHeights[2]] : podiumHeights.slice(0, top3.length);
+  const rankOrder = top3.length >= 3 ? [2, 1, 3] : top3.map((_, i) => i + 1);
+  const colorOrder = top3.length >= 3 ? [podiumColors[1], podiumColors[0], podiumColors[2]] : podiumColors.slice(0, top3.length);
+
+  podiumOrder.forEach((s, i) => {
+    if (!s) return;
+    const avatarIdx = getPlayerAvatarIndex(s.id);
+    const avatar = AVATARS[avatarIdx % 8];
+    const rank = rankOrder[i];
+    const height = heightOrder[i];
+    const color = colorOrder[i];
+    const delay = i * 0.2;
+
+    html += `<div class="podium-slot" style="animation-delay: ${delay}s">
+      <div class="podium-character">
+        <img src="${avatar.img}" alt="" class="podium-avatar-img breathing">
+      </div>
+      <div class="podium-name">${esc(s.name)}</div>
+      <div class="podium-score">${s.score}</div>
+      <div class="podium-block" style="height: ${height}px; background: ${color};">
+        <div class="podium-rank">${rank}</div>
+      </div>
     </div>`;
-  }).join('');
-}
+  });
 
-function showQuiflotzAnimation() {
-  const ov = document.getElementById('quiflotz-overlay');
-  ov.classList.remove('hidden');
-  playFartSound();
-  setTimeout(() => ov.classList.add('hidden'), 3000);
-}
+  html += '</div>';
 
-function playFartSound() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(150, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.5);
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
-  } catch (e) {}
-}
-
-function playRoundCompleteMusic() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const notes = [523, 587, 659, 698, 784, 880, 988, 1047];
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'square';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.15);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.15 + 0.3);
-      osc.start(ctx.currentTime + i * 0.15);
-      osc.stop(ctx.currentTime + i * 0.15 + 0.3);
+  // Remaining players below
+  if (scores.length > 3) {
+    html += '<div class="scoreboard-rest">';
+    scores.slice(3).forEach((s, i) => {
+      html += `<div class="final-score-row" style="animation-delay: ${(i + 3) * 0.1}s">
+        <span class="final-rank">#${i + 4}</span>
+        <span class="final-name">${esc(s.name)}</span>
+        <span class="final-score-value">${s.score}</span>
+      </div>`;
     });
-    setTimeout(() => playFartSound(), notes.length * 150 + 100);
-  } catch (e) {}
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
 }
+
+// Sound effects removed — music tracks only
 
 function esc(text) {
   const d = document.createElement('div');

@@ -93,10 +93,10 @@ io.on('connection', (socket) => {
 
     room.state = 'playing';
     room.mainRound++;
-    // Timers: 90s for rounds 1&2 (two prompts), 45s for round 3 (one prompt)
     room.settings.writeTime = 90;
     room.settings.finalWriteTime = 45;
-    startSubRound(room, 1);
+    // Show round splash, then start
+    showSplashThenDo(room, `סיבוב 1`, 5000, () => startSubRound(room, 1));
   });
 
   // --- Sub-round answer submission (rounds 1 & 2) ---
@@ -108,7 +108,7 @@ io.on('connection', (socket) => {
     if (!player || player.isSpectator) return;
 
     answers.forEach(({ matchupIndex, text }) => {
-      engine.submitMatchupAnswer(room, socket.id, matchupIndex, text.trim().substring(0, 100));
+      engine.submitMatchupAnswer(room, socket.id, matchupIndex, text.trim().substring(0, 25));
     });
 
     // Check if this player finished all their prompts
@@ -130,8 +130,7 @@ io.on('connection', (socket) => {
 
     // If all submitted, skip timer
     if (engine.allAnswersSubmitted(room)) {
-      clearTimeout(room.timer);
-      startMatchupVoting(room);
+      skipToMatchups(room);
     }
   });
 
@@ -139,12 +138,16 @@ io.on('connection', (socket) => {
 
   socket.on('submit-matchup-vote', ({ choice }) => {
     const room = rooms.get(socket.roomCode);
-    if (!room || room.phase !== 'matchup-vote') return;
+    if (!room) return;
+    // Accept votes during voting phase AND briefly during result phase (race condition grace)
+    if (room.phase !== 'matchup-vote' && room.phase !== 'matchup-result') return;
+
+    const matchup = engine.getCurrentMatchup(room);
+    if (!matchup || matchup.result) return; // Already resolved, too late
 
     engine.submitMatchupVote(room, socket.id, choice);
 
     // Count votes
-    const matchup = engine.getCurrentMatchup(room);
     const eligible = Array.from(room.players.values())
       .filter(p => p.connected && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
 
@@ -153,38 +156,24 @@ io.on('connection', (socket) => {
       total: eligible
     });
 
-    if (matchup.votes.size >= eligible) {
+    if (room.phase === 'matchup-vote' && matchup.votes.size >= eligible) {
       clearTimeout(room.timer);
       showMatchupResult(room);
     }
   });
 
-  // --- Host advances (next matchup, scoreboard, next sub-round) ---
+  // --- Host advances (kept for backward compat but flow is now auto-driven) ---
 
   socket.on('next-matchup', () => {
     const room = rooms.get(socket.roomCode);
     if (!room || socket.id !== room.hostId) return;
-
-    if (engine.nextMatchup(room)) {
-      startMatchupVoting(room);
-    } else {
-      // All matchups done — show scoreboard
-      showScoreboard(room);
-    }
+    advanceAfterMatchup(room);
   });
 
   socket.on('next-sub-round', () => {
     const room = rooms.get(socket.roomCode);
     if (!room || socket.id !== room.hostId) return;
-
-    if (room.subRound === 1) {
-      startSubRound(room, 2);
-    } else if (room.subRound === 2) {
-      startSubRound(room, 3);
-    } else {
-      // After sub-round 3 — round complete
-      showRoundComplete(room);
-    }
+    advanceToNextSubRound(room);
   });
 
   // --- Final round (sub-round 3) ---
@@ -193,7 +182,7 @@ io.on('connection', (socket) => {
     const room = rooms.get(socket.roomCode);
     if (!room || room.phase !== 'final-write') return;
 
-    engine.submitFinalAnswer(room, socket.id, answer.trim().substring(0, 100));
+    engine.submitFinalAnswer(room, socket.id, answer.trim().substring(0, 25));
 
     const player = room.players.get(socket.id);
     const elapsed = Math.floor((Date.now() - (room.writeStartTime || Date.now())) / 1000);
@@ -212,8 +201,7 @@ io.on('connection', (socket) => {
     // Round 3: wait for ALL players before starting vote
     if (submitted >= activePlayers.length) {
       clearTimeout(room.timer);
-      // Brief pause so last player sees "submitted" screen
-      setTimeout(() => startFinalVoting(room), 1500);
+      showSplashThenDo(room, 'כולם ענו! בואו נראה מה הצבעתם', 3000, () => startFinalVoting(room));
     }
   });
 
@@ -275,21 +263,24 @@ io.on('connection', (socket) => {
 });
 
 // ============================================================
-// GAME FLOW FUNCTIONS
+// GAME FLOW FUNCTIONS — Fully automated with splashes & timings
 // ============================================================
+
+function showSplashThenDo(room, text, duration, callback) {
+  room.phase = 'splash';
+  io.to(room.code).emit('show-splash', { text, duration });
+  room.timer = setTimeout(callback, duration);
+}
 
 function startSubRound(room, subRoundNum) {
   room.subRound = subRoundNum;
-  room.multiplier = subRoundNum; // 1x, 2x, 3x
+  room.multiplier = subRoundNum;
 
   if (subRoundNum <= 2) {
-    // Rounds 1 & 2: matchup-based
     room.phase = 'writing';
     engine.generateMatchups(room, prompts);
-
     room.writeStartTime = Date.now();
 
-    // Tell host — include player list for avatar display
     const activePlayers = engine.getActivePlayers(room);
     io.to(room.hostId).emit('sub-round-start', {
       mainRound: room.mainRound,
@@ -300,7 +291,6 @@ function startSubRound(room, subRoundNum) {
       players: activePlayers.map((p, i) => ({ id: p.id, name: p.name, index: i }))
     });
 
-    // Send each player their 2 prompts
     engine.getActivePlayers(room).forEach(p => {
       const playerPrompts = engine.getPlayerPrompts(room, p.id);
       io.to(p.id).emit('your-prompts', {
@@ -311,24 +301,18 @@ function startSubRound(room, subRoundNum) {
       });
     });
 
-    // Spectators see waiting screen
     engine.getSpectators(room).forEach(p => {
-      io.to(p.id).emit('spectator-writing', {
-        subRound: subRoundNum,
-        multiplier: room.multiplier
-      });
+      io.to(p.id).emit('spectator-writing', { subRound: subRoundNum, multiplier: room.multiplier });
     });
 
-    // Timer
     room.timer = setTimeout(() => {
-      startMatchupVoting(room);
+      // "נגמר הזמן" splash then start matchups
+      showSplashThenDo(room, 'נגמר הזמן!', 3000, () => beginMatchupSequence(room));
     }, room.settings.writeTime * 1000);
 
   } else {
-    // Sub-round 3: final round
     room.phase = 'final-write';
     engine.setupFinalRound(room, prompts);
-
     room.writeStartTime = Date.now();
     const writeTime = room.settings.finalWriteTime || 45;
     const activePlayersList = engine.getActivePlayers(room);
@@ -342,19 +326,51 @@ function startSubRound(room, subRoundNum) {
     };
 
     io.to(room.hostId).emit('final-round-start', data);
+    engine.getActivePlayers(room).forEach(p => io.to(p.id).emit('final-write-prompt', data));
+    engine.getSpectators(room).forEach(p => io.to(p.id).emit('spectator-final-writing', data));
 
-    engine.getActivePlayers(room).forEach(p => {
-      io.to(p.id).emit('final-write-prompt', data);
-    });
+    room.timer = setTimeout(() => {
+      showSplashThenDo(room, 'נגמר הזמן!', 3000, () => startFinalVoting(room));
+    }, writeTime * 1000);
+  }
+}
 
-    engine.getSpectators(room).forEach(p => {
-      io.to(p.id).emit('spectator-final-writing', data);
+// Called when all answers submitted early
+function skipToMatchups(room) {
+  clearTimeout(room.timer);
+  showSplashThenDo(room, 'כולם ענו! יאללה...', 2000, () => beginMatchupSequence(room));
+}
+
+function beginMatchupSequence(room) {
+  room.currentMatchupIndex = 0;
+  startNextMatchup(room);
+}
+
+function startNextMatchup(room) {
+  const matchup = engine.getCurrentMatchup(room);
+  if (!matchup) {
+    // All matchups done — show scoreboard
+    showSplashThenDo(room, 'בואו נראה את התוצאות עד כה', 3000, () => showScoreboard(room));
+    return;
+  }
+
+  // 3 second pause before each matchup
+  room.phase = 'matchup-pause';
+  io.to(room.code).emit('matchup-pause', { index: matchup.index, total: room.matchups.length });
+
+  room.timer = setTimeout(() => {
+    // Show prompt big for 7 seconds
+    room.phase = 'matchup-prompt-reveal';
+    io.to(room.code).emit('matchup-prompt-reveal', {
+      promptText: matchup.prompt.text,
+      index: matchup.index,
+      total: room.matchups.length
     });
 
     room.timer = setTimeout(() => {
-      startFinalVoting(room);
-    }, writeTime * 1000);
-  }
+      startMatchupVoting(room);
+    }, 7000);
+  }, 3000);
 }
 
 function startMatchupVoting(room) {
@@ -367,30 +383,19 @@ function startMatchupVoting(room) {
   const noAnswer1 = !a1;
   const noAnswer2 = !a2;
 
-  // If one or both have no answer — auto-resolve, skip voting
   if (noAnswer1 || noAnswer2) {
-    // Auto-win for the one who answered (or tie if both empty)
     const data = {
-      index: matchup.index,
-      total: room.matchups.length,
+      index: matchup.index, total: room.matchups.length,
       promptText: matchup.prompt.text,
-      answer1: a1 || '💨 אין תשובה',
-      answer2: a2 || '💨 אין תשובה',
-      noAnswer1,
-      noAnswer2,
-      autoResolve: true,
-      voteTime: 0,
-      subRound: room.subRound,
-      multiplier: room.multiplier
+      answer1: a1 || '💨 אין תשובה', answer2: a2 || '💨 אין תשובה',
+      noAnswer1, noAnswer2, autoResolve: true, voteTime: 0,
+      subRound: room.subRound, multiplier: room.multiplier
     };
-
     io.to(room.hostId).emit('matchup-show', data);
     room.players.forEach((player, id) => {
       if (!player.connected) return;
       io.to(id).emit('matchup-vote', { ...data, isMyMatchup: matchup.player1.id === id || matchup.player2.id === id });
     });
-
-    // Auto-resolve after brief display
     room.timer = setTimeout(() => {
       engine.autoResolveMatchup(room, noAnswer1, noAnswer2);
       showMatchupResult(room);
@@ -399,31 +404,22 @@ function startMatchupVoting(room) {
   }
 
   const data = {
-    index: matchup.index,
-    total: room.matchups.length,
+    index: matchup.index, total: room.matchups.length,
     promptText: matchup.prompt.text,
-    answer1: a1,
-    answer2: a2,
-    noAnswer1: false,
-    noAnswer2: false,
-    autoResolve: false,
+    answer1: a1, answer2: a2,
+    noAnswer1: false, noAnswer2: false, autoResolve: false,
     voteTime: room.settings.matchupVoteTime,
-    subRound: room.subRound,
-    multiplier: room.multiplier
+    subRound: room.subRound, multiplier: room.multiplier
   };
 
   io.to(room.hostId).emit('matchup-show', data);
-
   room.players.forEach((player, id) => {
     if (!player.connected) return;
-    io.to(id).emit('matchup-vote', {
-      ...data,
-      isMyMatchup: matchup.player1.id === id || matchup.player2.id === id
-    });
+    io.to(id).emit('matchup-vote', { ...data, isMyMatchup: matchup.player1.id === id || matchup.player2.id === id });
   });
 
   room.timer = setTimeout(() => {
-    showMatchupResult(room);
+    setTimeout(() => showMatchupResult(room), 1500);
   }, room.settings.matchupVoteTime * 1000);
 }
 
@@ -436,8 +432,7 @@ function showMatchupResult(room) {
   const hasQuiflotz = result.player1.quiflotz || result.player2.quiflotz;
 
   const data = {
-    result,
-    hasQuiflotz,
+    result, hasQuiflotz,
     matchupIndex: room.currentMatchupIndex,
     totalMatchups: room.matchups.length,
     isLastMatchup: room.currentMatchupIndex >= room.matchups.length - 1,
@@ -445,13 +440,31 @@ function showMatchupResult(room) {
   };
 
   io.to(room.code).emit('matchup-result', data);
+
+  // Show "בואו נראה מה כולם הצביעו" splash, then voter reveal, then auto-advance
+  const splashTime = 2000;
+  const voterRevealTime = 2000;
+  const percentageTime = 2000;
+  const quiflotzTime = hasQuiflotz ? 2500 : 0;
+
+  // Auto-advance to next matchup after display
+  room.timer = setTimeout(() => {
+    advanceAfterMatchup(room);
+  }, splashTime + voterRevealTime + percentageTime + quiflotzTime + 1500);
+}
+
+function advanceAfterMatchup(room) {
+  clearTimeout(room.timer);
+  if (engine.nextMatchup(room)) {
+    startNextMatchup(room);
+  } else {
+    showSplashThenDo(room, 'בואו נראה את התוצאות עד כה', 3000, () => showScoreboard(room));
+  }
 }
 
 function startFinalVoting(room) {
   room.phase = 'final-vote';
   const answers = Array.from(room.finalAnswers.values());
-
-  // Shuffle answers
   const shuffled = answers.sort(() => Math.random() - 0.5);
 
   const hostData = {
@@ -462,23 +475,16 @@ function startFinalVoting(room) {
 
   io.to(room.hostId).emit('final-voting-start', hostData);
 
-  // Send to each player (mark own answer)
   room.players.forEach((player, id) => {
     if (!player.connected) return;
     io.to(id).emit('final-vote-options', {
       prompt: room.finalPrompt,
-      answers: shuffled.map(a => ({
-        id: a.playerId,
-        text: a.text,
-        isMine: a.playerId === id
-      })),
+      answers: shuffled.map(a => ({ id: a.playerId, text: a.text, isMine: a.playerId === id })),
       voteTime: room.settings.finalVoteTime
     });
   });
 
-  room.timer = setTimeout(() => {
-    showFinalResult(room);
-  }, room.settings.finalVoteTime * 1000);
+  room.timer = setTimeout(() => showFinalResult(room), room.settings.finalVoteTime * 1000);
 }
 
 function showFinalResult(room) {
@@ -491,6 +497,15 @@ function showFinalResult(room) {
     results,
     scores: engine.getScoreboard(room)
   });
+
+  // Auto-advance: final reveal takes ~5s per answer + extra time
+  const revealCount = results.filter(r => r.points > 0).length || 1;
+  const totalRevealTime = revealCount * 5500 + 3000;
+  room.timer = setTimeout(() => {
+    showSplashThenDo(room, 'בואו נראה את התוצאות הסופיות לסיבוב זה', 2000, () => {
+      showScoreboard(room);
+    });
+  }, totalRevealTime);
 }
 
 function showScoreboard(room) {
@@ -501,15 +516,37 @@ function showScoreboard(room) {
     mainRound: room.mainRound,
     nextSubRound: room.subRound < 3 ? room.subRound + 1 : null
   });
+
+  // Auto-advance after 7 seconds
+  room.timer = setTimeout(() => {
+    advanceToNextSubRound(room);
+  }, 7000);
+}
+
+function advanceToNextSubRound(room) {
+  clearTimeout(room.timer);
+  if (room.subRound === 1) {
+    showSplashThenDo(room, 'סיבוב 2', 5000, () => startSubRound(room, 2));
+  } else if (room.subRound === 2) {
+    showSplashThenDo(room, 'סיבוב 3', 5000, () => startSubRound(room, 3));
+  } else {
+    showRoundComplete(room);
+  }
 }
 
 function showRoundComplete(room) {
   room.phase = 'round-complete';
+  const scores = engine.getScoreboard(room);
+  const winner = scores[0] || null;
+
   io.to(room.code).emit('round-complete', {
     mainRound: room.mainRound,
-    scores: engine.getScoreboard(room),
-    winner: engine.getScoreboard(room)[0] || null
+    scores,
+    winner
   });
+
+  // Winner display (5s) → credits roll (auto) → "משחק חדש" button stays
+  // No auto-advance here — host decides to start new game
 }
 
 const PORT = process.env.PORT || 3000;
