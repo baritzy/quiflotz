@@ -87,20 +87,33 @@ gameMusic.preload = 'auto';
 function dismissSplash() {
   audioUnlocked = true;
 
-  // Try to play with multiple retries for mobile/strict browsers
-  function tryPlay() {
-    lobbyMusic.play().then(() => {
-      console.log('Lobby music started');
-    }).catch(e => {
-      console.log('Music play attempt failed:', e.message);
-    });
+  // Create and resume AudioContext on user gesture (required by browsers)
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => console.log('AudioContext resumed'));
+    }
+    // Play a tiny silent buffer to fully unlock audio
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch(e) {
+    console.log('AudioContext unlock failed:', e.message);
   }
 
-  tryPlay();
-  // Retry after short delays in case first attempt fails
-  setTimeout(tryPlay, 300);
-  setTimeout(tryPlay, 1000);
-  setTimeout(tryPlay, 3000);
+  // Now play the actual music
+  lobbyMusic.currentTime = 0;
+  lobbyMusic.play().then(() => {
+    console.log('Lobby music playing, volume:', lobbyMusic.volume, 'muted:', lobbyMusic.muted);
+  }).catch(e => {
+    console.log('Music play failed:', e.message);
+    // Retry once
+    setTimeout(() => {
+      lobbyMusic.play().catch(e2 => console.log('Retry failed:', e2.message));
+    }, 500);
+  });
 
   showScreen('lobby');
 }
