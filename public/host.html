@@ -139,7 +139,7 @@
   <div id="screen-prompt-reveal" class="screen">
     <div class="phase-container prompt-reveal-container">
       <div class="prompt-reveal-big">
-        <div class="prompt-card large"><div class="prompt-text" id="reveal-prompt-text"></div></div>
+        <div class="prompt-text-bare" id="reveal-prompt-text"></div>
       </div>
     </div>
   </div>
@@ -147,11 +147,7 @@
   <!-- MATCHUP VOTING (1v1) -->
   <div id="screen-matchup" class="screen">
     <div class="phase-container">
-      <div class="sub-round-header">
-        <span class="round-badge">משחק <span id="matchup-num">1</span>/<span id="matchup-total">4</span></span>
-        <span class="multiplier-badge" id="matchup-multiplier">x1</span>
-      </div>
-      <div class="prompt-card small"><div class="prompt-text" id="matchup-prompt"></div></div>
+      <div class="prompt-text-inline" id="matchup-prompt"></div>
       <div class="matchup-arena">
         <div class="matchup-answer left" id="matchup-a1">
           <div class="matchup-answer-text" id="matchup-a1-text"></div>
@@ -169,7 +165,7 @@
   <!-- MATCHUP RESULT -->
   <div id="screen-matchup-result" class="screen">
     <div class="phase-container">
-      <div class="prompt-card small"><div class="prompt-text" id="result-prompt"></div></div>
+      <div class="prompt-text-inline" id="result-prompt"></div>
       <div class="matchup-result-arena">
         <div class="matchup-result-side left" id="result-left">
           <div class="result-player-name" id="result-name1"></div>
@@ -226,14 +222,25 @@
     </div>
   </div>
 
-  <!-- ROUND COMPLETE -->
+  <!-- ROUND COMPLETE (shows final scoreboard first, then winner) -->
   <div id="screen-round-complete" class="screen">
     <div class="final-container">
-      <h1 class="final-title">🎉 סוף הסיבוב! 🎉</h1>
-      <div id="round-winner-showcase" class="winner-showcase"></div>
+      <h1 class="scoreboard-title">🏆 תוצאות סופיות</h1>
       <div class="final-scoreboard" id="round-final-scores"></div>
-      <button class="btn btn-start" id="btn-new-round">🔄 סיבוב חדש!</button>
-      <button class="btn btn-host-link" id="btn-back-lobby" style="margin-top:10px">🏠 חזרה ללובי</button>
+    </div>
+  </div>
+
+  <!-- WINNER ANNOUNCEMENT -->
+  <div id="screen-winner" class="screen">
+    <div class="winner-screen">
+      <h1 class="winner-title-text" id="winner-title">AND THE WINNER IS...</h1>
+      <div class="winner-character-big" id="winner-character-big"></div>
+      <div class="winner-name-big" id="winner-name-big"></div>
+      <div class="winner-score-big" id="winner-score-big"></div>
+      <div class="winner-buttons">
+        <button class="btn btn-start" id="btn-new-round">🔄 סיבוב חדש!</button>
+        <button class="btn btn-host-link" id="btn-back-lobby" style="margin-top:10px">🏠 חזרה ללובי</button>
+      </div>
     </div>
   </div>
 

@@ -194,10 +194,10 @@ class GameEngine {
 
       if (choice === 1) {
         p1Votes += weight;
-        p1Voters.push(voter.name);
+        p1Voters.push({ id: voterId, name: voter.name });
       } else {
         p2Votes += weight;
-        p2Voters.push(voter.name);
+        p2Voters.push({ id: voterId, name: voter.name });
       }
     });
 
@@ -325,7 +325,7 @@ class GameEngine {
         if (count > 0 && voteCounts.has(answerId)) {
           voteCounts.set(answerId, (voteCounts.get(answerId) || 0) + count * weight);
           const names = voterNames.get(answerId) || [];
-          names.push(voter.name + (count > 1 ? ` (x${count})` : ''));
+          names.push({ id: voterId, name: voter.name, count });
           voterNames.set(answerId, names);
         }
       }

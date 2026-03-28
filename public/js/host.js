@@ -339,9 +339,9 @@ socket.on('matchup-prompt-reveal', ({ promptText }) => {
   showScreen('prompt-reveal');
 });
 
-// Matchup pause (brief pause between matchups)
-socket.on('matchup-pause', ({ index, total }) => {
-  document.getElementById('splash-text-content').textContent = `משחק ${index + 1} מתוך ${total}`;
+// Matchup pause (brief pause between matchups — no numbering)
+socket.on('matchup-pause', () => {
+  document.getElementById('splash-text-content').textContent = '';
   showScreen('splash-text');
 });
 
@@ -384,79 +384,105 @@ socket.on('matchup-result', ({ result, hasQuiflotz, matchupIndex, totalMatchups,
 
   document.getElementById('result-prompt').textContent = result.prompt.text;
   document.getElementById('result-name1').textContent = result.player1.name;
-  document.getElementById('result-text1').textContent = result.player1.answer;
-  document.getElementById('result-pts1').textContent = '+' + result.player1.points;
-  document.getElementById('result-bar1').style.width = '0%';
-
   document.getElementById('result-name2').textContent = result.player2.name;
-  document.getElementById('result-text2').textContent = result.player2.answer;
+
+  const isDisqualified1 = result.player1.answer === '💨 אין תשובה' || result.player1.answer === '(no answer)';
+  const isDisqualified2 = result.player2.answer === '💨 אין תשובה' || result.player2.answer === '(no answer)';
+
+  document.getElementById('result-text1').textContent = isDisqualified1 ? '💨 פסול!' : result.player1.answer;
+  document.getElementById('result-text2').textContent = isDisqualified2 ? '💨 פסול!' : result.player2.answer;
+  document.getElementById('result-pts1').textContent = '+' + result.player1.points;
   document.getElementById('result-pts2').textContent = '+' + result.player2.points;
+  document.getElementById('result-bar1').style.width = '0%';
   document.getElementById('result-bar2').style.width = '0%';
 
   // Hide percentages initially
   document.getElementById('result-pct1').classList.add('hidden');
   document.getElementById('result-pct2').classList.add('hidden');
 
-  // Highlight winner
+  // Highlight winner / disqualified
   const left = document.getElementById('result-left');
   const right = document.getElementById('result-right');
-  left.classList.toggle('winner', result.player1.points > result.player2.points);
-  right.classList.toggle('winner', result.player2.points > result.player1.points);
+  left.className = 'matchup-result-side left';
+  right.className = 'matchup-result-side right';
+  if (isDisqualified1) left.classList.add('disqualified');
+  if (isDisqualified2) right.classList.add('disqualified');
+  left.classList.toggle('winner', !isDisqualified1 && result.player1.points > result.player2.points);
+  right.classList.toggle('winner', !isDisqualified2 && result.player2.points > result.player1.points);
   left.classList.toggle('quiflotz-glow', result.player1.quiflotz);
   right.classList.toggle('quiflotz-glow', result.player2.quiflotz);
 
-  // Step 1: Show voter avatars (immediately)
+  // Show voter avatars (immediately)
   showVoterAvatars('result-voters1', result.player1.voters);
   showVoterAvatars('result-voters2', result.player2.voters);
 
-  // Step 2: Show percentages after 2 seconds
+  // Show percentages after 2 seconds — but NOT for disqualified answers
   setTimeout(() => {
     const pct1El = document.getElementById('result-pct1');
     const pct2El = document.getElementById('result-pct2');
-    pct1El.textContent = result.player1.percentage + '%';
-    pct2El.textContent = result.player2.percentage + '%';
-    pct1El.classList.remove('hidden');
-    pct2El.classList.remove('hidden');
-    pct1El.classList.add('pop-in');
-    pct2El.classList.add('pop-in');
 
-    // Animate bars
-    document.getElementById('result-bar1').style.width = result.player1.percentage + '%';
-    document.getElementById('result-bar2').style.width = result.player2.percentage + '%';
+    if (!isDisqualified1 && !isDisqualified2) {
+      pct1El.textContent = result.player1.percentage + '%';
+      pct2El.textContent = result.player2.percentage + '%';
+      pct1El.classList.remove('hidden');
+      pct2El.classList.remove('hidden');
+      pct1El.classList.add('pop-in');
+      pct2El.classList.add('pop-in');
+      document.getElementById('result-bar1').style.width = result.player1.percentage + '%';
+      document.getElementById('result-bar2').style.width = result.player2.percentage + '%';
+    } else if (isDisqualified1 && !isDisqualified2) {
+      pct2El.textContent = '100%';
+      pct2El.classList.remove('hidden');
+      pct2El.classList.add('pop-in');
+      document.getElementById('result-bar2').style.width = '100%';
+    } else if (!isDisqualified1 && isDisqualified2) {
+      pct1El.textContent = '100%';
+      pct1El.classList.remove('hidden');
+      pct1El.classList.add('pop-in');
+      document.getElementById('result-bar1').style.width = '100%';
+    }
+    // Both disqualified — show nothing
   }, 2000);
 
   if (hasQuiflotz) {
-    // Show Quiflotz overlay without sound effects
     const ov = document.getElementById('quiflotz-overlay');
     ov.classList.remove('hidden');
     setTimeout(() => ov.classList.add('hidden'), 3000);
   }
 
-  // Auto-advance is handled by server — hide manual button
-  const btn = document.getElementById('btn-next-matchup');
-  btn.style.display = 'none';
+  document.getElementById('btn-next-matchup').style.display = 'none';
 });
 
-function showVoterAvatars(containerId, voterNames) {
+function showVoterAvatars(containerId, voters) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
-  if (!voterNames || voterNames.length === 0) {
+  if (!voters || voters.length === 0) {
     el.innerHTML = '';
     return;
   }
 
-  el.innerHTML = voterNames.map((name, i) => {
-    // Find this voter's avatar by name
-    const cleanName = name.replace(/ \(x\d+\)$/, '');
-    const voteCount = name.match(/\(x(\d+)\)$/);
-    const countBadge = voteCount ? `<span class="voter-count">x${voteCount[1]}</span>` : '';
+  // Track which voters we've already shown to avoid duplicates
+  const shownIds = new Set();
 
-    return `<div class="voter-avatar pop-in" style="animation-delay: ${i * 0.15}s">
-      <div class="voter-avatar-icon"><img src="/assets/img/characters/char-0.png" class="avatar-img-sm"></div>
-      <div class="voter-avatar-name">${esc(cleanName)}${countBadge}</div>
+  el.innerHTML = voters.map((voter, i) => {
+    // Support both old format (string) and new format (object with id/name)
+    const voterId = typeof voter === 'object' ? voter.id : null;
+    const voterName = typeof voter === 'object' ? voter.name : voter.replace(/ \(x\d+\)$/, '');
+
+    // Skip duplicates
+    if (voterId && shownIds.has(voterId)) return '';
+    if (voterId) shownIds.add(voterId);
+
+    // Get correct avatar for this voter
+    const avatarIdx = voterId ? getPlayerAvatarIndex(voterId) : 0;
+    const avatar = AVATARS[avatarIdx % 8];
+
+    return `<div class="voter-avatar voter-avatar-lg" style="animation-delay: ${i * 0.2}s">
+      <div class="voter-avatar-icon-lg"><img src="${avatar.img}" class="voter-char-img"></div>
+      <div class="voter-avatar-name-lg">${esc(voterName)}</div>
     </div>`;
-  }).join('');
+  }).filter(Boolean).join('');
 }
 
 document.getElementById('btn-next-matchup').addEventListener('click', () => {
@@ -535,13 +561,16 @@ function revealNextFinalAnswer() {
 
   // Show voter avatars
   const votersEl = document.getElementById('final-reveal-voters');
-  votersEl.innerHTML = r.voters.map((name, i) => {
-    const cleanName = name.replace(/ \(x\d+\)$/, '');
-    const voteCount = name.match(/\(x(\d+)\)$/);
-    const countBadge = voteCount ? `<span class="voter-count">x${voteCount[1]}</span>` : '';
-    return `<div class="voter-avatar pop-in" style="animation-delay: ${i * 0.15}s">
-      <div class="voter-avatar-icon"><img src="/assets/img/characters/char-0.png" class="avatar-img-sm"></div>
-      <div class="voter-avatar-name">${esc(cleanName)}${countBadge}</div>
+  votersEl.innerHTML = r.voters.map((voter, i) => {
+    const voterId = typeof voter === 'object' ? voter.id : null;
+    const voterName = typeof voter === 'object' ? voter.name : voter.replace(/ \(x\d+\)$/, '');
+    const count = typeof voter === 'object' ? voter.count : 1;
+    const countBadge = count > 1 ? `<span class="voter-count">x${count}</span>` : '';
+    const avatarIdx = voterId ? getPlayerAvatarIndex(voterId) : 0;
+    const avatar = AVATARS[avatarIdx % 8];
+    return `<div class="voter-avatar voter-avatar-lg" style="animation-delay: ${i * 0.2}s">
+      <div class="voter-avatar-icon-lg"><img src="${avatar.img}" class="voter-char-img"></div>
+      <div class="voter-avatar-name-lg">${esc(voterName)}${countBadge}</div>
     </div>`;
   }).join('');
 
@@ -608,18 +637,27 @@ document.getElementById('btn-next-sub').addEventListener('click', () => {
 });
 
 // ============================================================
-// ROUND COMPLETE
+// ROUND COMPLETE — show final scoreboard, then winner after 3s
 // ============================================================
 socket.on('round-complete', ({ mainRound, scores, winner }) => {
   showScreen('round-complete');
-  if (winner) {
-    document.getElementById('round-winner-showcase').innerHTML = `
-      <div class="winner-emoji"><img src="/assets/img/winner.png" class="winner-img"></div>
-      <div class="winner-name">${esc(winner.name)}</div>
-      <div class="winner-score">${winner.score} נקודות</div>
-    `;
-  }
   renderScoreboard('round-final-scores', scores);
+
+  // After 3 seconds, transition to winner announcement
+  if (winner) {
+    setTimeout(() => {
+      showScreen('winner');
+      stopMusic();
+
+      const avatarIdx = getPlayerAvatarIndex(winner.id);
+      const avatar = AVATARS[avatarIdx % 8];
+
+      document.getElementById('winner-character-big').innerHTML =
+        `<img src="${avatar.img}" alt="">`;
+      document.getElementById('winner-name-big').textContent = winner.name;
+      document.getElementById('winner-score-big').textContent = winner.score + ' נקודות';
+    }, 3000);
+  }
 });
 
 document.getElementById('btn-new-round').addEventListener('click', () => socket.emit('new-round'));
@@ -641,57 +679,62 @@ socket.on('error-msg', ({ message }) => alert(message));
 function renderScoreboard(containerId, scores) {
   const el = document.getElementById(containerId);
 
-  // Quiplash-style podium scoreboard
-  const podiumColors = ['#FFD700', '#C0C0C0', '#CD7F32']; // gold, silver, bronze
-  const podiumHeights = [180, 140, 110]; // px heights for top 3
+  // Quiplash-style: numbered blocks with characters on top, ALL players shown
+  // Layout: top row (up to 4), bottom row (remaining)
+  const topRow = scores.slice(0, 4);
+  const bottomRow = scores.slice(4);
 
-  let html = '<div class="podium-container">';
+  let html = '<div class="score-grid">';
 
-  // Top 3 podiums
-  const top3 = scores.slice(0, 3);
-  // Display order: 2nd, 1st, 3rd (for visual podium layout)
-  const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3;
-  const heightOrder = top3.length >= 3 ? [podiumHeights[1], podiumHeights[0], podiumHeights[2]] : podiumHeights.slice(0, top3.length);
-  const rankOrder = top3.length >= 3 ? [2, 1, 3] : top3.map((_, i) => i + 1);
-  const colorOrder = top3.length >= 3 ? [podiumColors[1], podiumColors[0], podiumColors[2]] : podiumColors.slice(0, top3.length);
-
-  podiumOrder.forEach((s, i) => {
-    if (!s) return;
-    const avatarIdx = getPlayerAvatarIndex(s.id);
-    const avatar = AVATARS[avatarIdx % 8];
-    const rank = rankOrder[i];
-    const height = heightOrder[i];
-    const color = colorOrder[i];
-    const delay = i * 0.2;
-
-    html += `<div class="podium-slot" style="animation-delay: ${delay}s">
-      <div class="podium-character">
-        <img src="${avatar.img}" alt="" class="podium-avatar-img breathing">
-      </div>
-      <div class="podium-name">${esc(s.name)}</div>
-      <div class="podium-score">${s.score}</div>
-      <div class="podium-block" style="height: ${height}px; background: ${color};">
-        <div class="podium-rank">${rank}</div>
-      </div>
-    </div>`;
+  // Top row
+  html += '<div class="score-row-top">';
+  topRow.forEach((s, i) => {
+    html += renderScoreBlock(s, i, i * 0.15);
   });
-
   html += '</div>';
 
-  // Remaining players below
-  if (scores.length > 3) {
-    html += '<div class="scoreboard-rest">';
-    scores.slice(3).forEach((s, i) => {
-      html += `<div class="final-score-row" style="animation-delay: ${(i + 3) * 0.1}s">
-        <span class="final-rank">#${i + 4}</span>
-        <span class="final-name">${esc(s.name)}</span>
-        <span class="final-score-value">${s.score}</span>
-      </div>`;
+  // Bottom row
+  if (bottomRow.length > 0) {
+    html += '<div class="score-row-bottom">';
+    bottomRow.forEach((s, i) => {
+      html += renderScoreBlock(s, i + 4, (i + 4) * 0.15);
     });
     html += '</div>';
   }
 
+  html += '</div>';
   el.innerHTML = html;
+}
+
+function renderScoreBlock(s, rankIndex, delay) {
+  const rank = rankIndex + 1;
+  const avatarIdx = getPlayerAvatarIndex(s.id);
+  const avatar = AVATARS[avatarIdx % 8];
+
+  // Block colors based on rank
+  const blockColors = [
+    'linear-gradient(180deg, #4a90d9, #2563a0)', // 1st - blue
+    'linear-gradient(180deg, #4a90d9, #2563a0)', // 2nd
+    'linear-gradient(180deg, #4a90d9, #2563a0)', // 3rd
+    'linear-gradient(180deg, #4a90d9, #2563a0)', // 4th
+    'linear-gradient(180deg, #3a7abd, #1e5490)', // 5th
+    'linear-gradient(180deg, #3a7abd, #1e5490)', // 6th
+    'linear-gradient(180deg, #3a7abd, #1e5490)', // 7th
+    'linear-gradient(180deg, #3a7abd, #1e5490)', // 8th
+  ];
+  const isTopRow = rankIndex < 4;
+  const blockSize = isTopRow ? 'large' : 'small';
+
+  return `<div class="score-block score-block-${blockSize}" style="animation-delay: ${delay}s">
+    <div class="score-block-rank">${rank}</div>
+    <div class="score-block-character">
+      <img src="${avatar.img}" alt="" class="score-block-avatar breathing">
+    </div>
+    <div class="score-block-info">
+      <div class="score-block-name">${esc(s.name)}</div>
+      <div class="score-block-points">${s.score}</div>
+    </div>
+  </div>`;
 }
 
 // Sound effects removed — music tracks only
