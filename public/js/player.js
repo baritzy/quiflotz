@@ -127,8 +127,10 @@ function submitCurrentAnswer() {
   const text = input.value.trim();
   const matchupIndex = parseInt(input.dataset.matchup);
 
+  // Send each answer immediately to the server
   if (text) {
     collectedAnswers.push({ matchupIndex, text });
+    socket.emit('submit-answers', { answers: [{ matchupIndex, text }] });
   }
 
   currentPromptIndex++;
@@ -137,10 +139,7 @@ function submitCurrentAnswer() {
     // Show next prompt
     showCurrentPrompt();
   } else {
-    // All prompts answered — send to server
-    if (collectedAnswers.length > 0) {
-      socket.emit('submit-answers', { answers: collectedAnswers });
-    }
+    // All prompts done
     showScreen('submitted');
     clearInterval(writeTimerInterval);
   }
@@ -206,7 +205,7 @@ socket.on('final-write-prompt', ({ prompt, writeTime }) => {
     }
   });
   setTimeout(() => finalInput?.focus(), 100);
-  startGenericCountdown('p-final-write-timer', writeTime);
+  startGenericCountdown('p-final-write-timer', writeTime, true);
 });
 
 document.getElementById('btn-submit-final').addEventListener('click', () => {
@@ -368,45 +367,49 @@ function startCountdown(timerId, seconds) {
   if (!el) return;
 
   let remaining = seconds;
-  el.innerHTML = createCircleTimer(remaining, seconds);
+  el.innerHTML = createCircleTimer(remaining, seconds, true);
 
   writeTimerInterval = setInterval(() => {
     remaining--;
     if (remaining <= 0) {
       clearInterval(writeTimerInterval);
       remaining = 0;
-      // Auto-submit whatever we have
+      // Auto-submit current answer if player is still writing
       if (collectedAnswers.length < currentPrompts.length) {
         const input = document.getElementById('current-answer');
         if (input && input.value.trim()) {
-          collectedAnswers.push({ matchupIndex: parseInt(input.dataset.matchup), text: input.value.trim() });
-        }
-        if (collectedAnswers.length > 0) {
-          socket.emit('submit-answers', { answers: collectedAnswers });
+          const text = input.value.trim();
+          const matchupIndex = parseInt(input.dataset.matchup);
+          socket.emit('submit-answers', { answers: [{ matchupIndex, text }] });
         }
         showScreen('submitted');
       }
     }
-    el.innerHTML = createCircleTimer(remaining, seconds);
+    el.innerHTML = createCircleTimer(remaining, seconds, true);
   }, 1000);
 }
 
-function startGenericCountdown(timerId, seconds) {
+function startGenericCountdown(timerId, seconds, isWritePhase) {
   const el = document.getElementById(timerId);
   if (!el) return;
   let remaining = seconds;
-  el.innerHTML = createCircleTimer(remaining, seconds);
+  el.innerHTML = createCircleTimer(remaining, seconds, isWritePhase);
   const iv = setInterval(() => {
     remaining--;
     if (remaining <= 0) { clearInterval(iv); remaining = 0; }
-    el.innerHTML = createCircleTimer(remaining, seconds);
+    el.innerHTML = createCircleTimer(remaining, seconds, isWritePhase);
   }, 1000);
 }
 
-function createCircleTimer(remaining, total) {
+function createCircleTimer(remaining, total, isWritePhase) {
   const pct = total > 0 ? (remaining / total) * 100 : 0;
   const deg = (pct / 100) * 360;
-  const color = remaining <= 5 ? '#FF1493' : remaining <= 15 ? '#FFD700' : '#39FF14';
+  let color;
+  if (isWritePhase && remaining <= 10) {
+    color = '#FF1744';
+  } else {
+    color = remaining <= 5 ? '#FF1493' : remaining <= 15 ? '#FFD700' : '#39FF14';
+  }
   return `<div class="circle-timer" style="background: conic-gradient(${color} ${deg}deg, rgba(255,255,255,0.1) ${deg}deg)">
     <div class="circle-timer-inner">${remaining}</div>
   </div>`;

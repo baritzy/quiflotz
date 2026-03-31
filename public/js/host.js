@@ -59,6 +59,9 @@ const NARRATOR = {
 const SFX = {
   drumRolls: new Audio('/assets/SFX-drum-rolls.mp3'),
   winnerSound: new Audio('/assets/SFX-winner-sound.mp3'),
+  countdown10: new Audio('/assets/Narrator-10-seconds.mp3'),
+  countdown5: new Audio('/assets/Narrator-5-seconds.mp3'),
+  timeIsUp: new Audio('/assets/Narrator-time-is-up.mp3'),
 };
 
 const ALL_AUDIO = [
@@ -249,24 +252,46 @@ const CREDITS_HTML = `
 // CIRCULAR TIMER
 // ============================================================
 let activeTimerInterval = null;
+let countdownTriggered10 = false;
+let countdownTriggered5 = false;
 
-function startCircleTimer(containerId, seconds) {
+function startCircleTimer(containerId, seconds, isWritePhase) {
   clearInterval(activeTimerInterval);
+  countdownTriggered10 = false;
+  countdownTriggered5 = false;
   const el = document.getElementById(containerId);
   if (!el) return;
   let remaining = seconds;
-  el.innerHTML = renderCircle(remaining, seconds);
+  el.innerHTML = renderCircle(remaining, seconds, isWritePhase);
   activeTimerInterval = setInterval(() => {
     remaining--;
     if (remaining <= 0) { clearInterval(activeTimerInterval); remaining = 0; }
-    el.innerHTML = renderCircle(remaining, seconds);
+    el.innerHTML = renderCircle(remaining, seconds, isWritePhase);
+
+    // Writing phase only: narrator countdown at 10s and 5s
+    if (isWritePhase) {
+      if (remaining === 10 && !countdownTriggered10) {
+        countdownTriggered10 = true;
+        playSFX(SFX.countdown10);
+      }
+      if (remaining === 5 && !countdownTriggered5) {
+        countdownTriggered5 = true;
+        playSFX(SFX.countdown5);
+      }
+    }
   }, 1000);
 }
 
-function renderCircle(remaining, total) {
+function renderCircle(remaining, total, isWritePhase) {
   const pct = total > 0 ? (remaining / total) * 100 : 0;
   const deg = (pct / 100) * 360;
-  const color = remaining <= 5 ? '#FF1493' : remaining <= 15 ? '#FFD700' : '#39FF14';
+  // Writing phase: red from 10s and below. Other timers: original colors
+  let color;
+  if (isWritePhase && remaining <= 10) {
+    color = '#FF1744';
+  } else {
+    color = remaining <= 5 ? '#FF1493' : remaining <= 15 ? '#FFD700' : '#39FF14';
+  }
   return `<div class="circle-timer" style="background: conic-gradient(${color} ${deg}deg, rgba(255,255,255,0.1) ${deg}deg)">
     <div class="circle-timer-inner">${remaining}</div>
   </div>`;
@@ -357,7 +382,7 @@ socket.on('sub-round-start', ({ subRound, multiplier, matchupCount, writeTime, p
   document.getElementById('writing-status-text').textContent = 'השחקנים כותבים תשובות...';
   document.getElementById('writing-prompt-area').style.display = 'none';
   playMusic(getRoundMusic()); // Start round music at writing phase
-  startCircleTimer('write-timer', writeTime);
+  startCircleTimer('write-timer', writeTime, true);
   buildAvatarFloor(writingPlayers);
 });
 
@@ -374,7 +399,7 @@ socket.on('final-round-start', ({ prompt, writeTime, players }) => {
   document.getElementById('writing-prompt-area').style.display = 'block';
   document.getElementById('writing-prompt-text').textContent = prompt.text;
   playMusic(MUSIC.round3); // Start round 3 music at writing phase
-  startCircleTimer('write-timer', writeTime);
+  startCircleTimer('write-timer', writeTime, true);
   buildAvatarFloor(writingPlayers);
 });
 
@@ -410,34 +435,44 @@ socket.on('writing-progress', ({ submitted, total }) => {
 // ============================================================
 // SPLASH EVENTS — with narrator audio
 // ============================================================
-socket.on('show-splash', ({ text, type, duration }) => {
+socket.on('show-splash', ({ text, type, duration, waitForNarrator }) => {
   document.getElementById('splash-text-content').textContent = text;
   showScreen('splash-text');
 
   // Round intro splashes and scoreboard splashes = stop music, narrator only
-  // Mid-round splashes (no type) = just visual pause, keep music
   const stopTypes = ['pre-game', 'round-1-start', 'round-2-start', 'round-3-start', 'round-4-start',
                      'scoreboard-1', 'scoreboard-2', 'scoreboard-3'];
   if (type && stopTypes.includes(type)) {
     stopMusic();
   }
 
+  let narratorPromise = null;
   if (type === 'pre-game') {
-    playNarrator(NARRATOR.letsStart);
+    narratorPromise = playNarrator(NARRATOR.letsStart);
   } else if (type === 'round-1-start') {
-    playNarrator(NARRATOR.round1);
+    narratorPromise = playNarrator(NARRATOR.round1);
   } else if (type === 'round-2-start') {
-    playNarrator(NARRATOR.round2);
+    narratorPromise = playNarrator(NARRATOR.round2);
   } else if (type === 'round-3-start') {
-    playNarrator(NARRATOR.round3);
+    narratorPromise = playNarrator(NARRATOR.round3);
   } else if (type === 'round-4-start') {
-    playNarrator(NARRATOR.round4);
+    narratorPromise = playNarrator(NARRATOR.round4);
   } else if (type === 'scoreboard-1') {
-    playNarrator(NARRATOR.pointsTable1);
+    narratorPromise = playNarrator(NARRATOR.pointsTable1);
   } else if (type === 'scoreboard-2') {
-    playNarrator(NARRATOR.pointsTable2);
+    narratorPromise = playNarrator(NARRATOR.pointsTable2);
   } else if (type === 'scoreboard-3') {
-    playNarrator(NARRATOR.pointsTable3);
+    narratorPromise = playNarrator(NARRATOR.pointsTable3);
+  } else if (type === 'time-is-up') {
+    playSFX(SFX.timeIsUp);
+  }
+
+  // If narrated splash — wait for narrator to finish, then tell server
+  if (waitForNarrator && narratorPromise) {
+    narratorPromise.then(() => {
+      // Small buffer after narrator ends
+      setTimeout(() => socket.emit('splash-done'), 500);
+    });
   }
 });
 
@@ -584,75 +619,110 @@ socket.on('final-vote-progress', ({ count }) => {
 });
 
 // ============================================================
-// FINAL ROUND RESULTS
+// FINAL ROUND RESULTS — popup-style reveal
 // ============================================================
 let finalRevealResults = [];
 let finalRevealIndex = 0;
+let finalTotalVotes = 0;
 
 socket.on('final-round-result', ({ prompt, results }) => {
   showScreen('final-result');
   document.getElementById('final-result-prompt').textContent = prompt.text;
-  document.getElementById('final-results-list').innerHTML = '';
-  document.getElementById('btn-after-final').style.display = 'none';
-  finalRevealResults = results.filter(r => r.points > 0);
+
+  // Sort: least votes first (we reveal from worst to best)
+  finalRevealResults = [...results].sort((a, b) => a.votes - b.votes);
+  finalTotalVotes = results.reduce((sum, r) => sum + r.votes, 0);
+  finalRevealIndex = 0;
+
+  // Build the grid of all answers (hidden details initially)
+  const grid = document.getElementById('final-answers-grid');
+  grid.innerHTML = finalRevealResults.map((r, i) => {
+    const avatar = AVATARS[getPlayerAvatarIndex(r.playerId)];
+    return `<div class="final-grid-card" id="final-grid-${i}" data-index="${i}">
+      <div class="final-grid-answer">${esc(r.text)}</div>
+      <div class="final-grid-player">
+        <img src="${avatar.img}" class="final-grid-avatar-img"> ${esc(r.playerName)}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Hide overlay
+  document.getElementById('final-popup-overlay').classList.add('hidden');
+
   if (finalRevealResults.length === 0) {
-    document.getElementById('final-results-list').innerHTML = '<div class="waiting-text">אף אחד לא הצביע...</div>';
+    grid.innerHTML = '<div class="waiting-text">אף אחד לא הצביע...</div>';
     return;
   }
-  finalRevealResults.reverse();
-  finalRevealIndex = 0;
-  revealNextFinalAnswer();
+
+  // Start reveal sequence after a brief pause
+  setTimeout(revealNextFinalAnswer, 1500);
 });
 
 function revealNextFinalAnswer() {
   if (finalRevealIndex >= finalRevealResults.length) return;
+
   const r = finalRevealResults[finalRevealIndex];
   const isLast = finalRevealIndex === finalRevealResults.length - 1;
-  const card = document.getElementById('final-reveal-card');
-  card.style.display = 'block';
-  card.className = 'final-reveal-card pop-in' + (isLast ? ' winner-card' : '');
-  document.getElementById('final-reveal-answer').textContent = r.text;
-  document.getElementById('final-reveal-player').textContent = r.playerName;
-  document.getElementById('final-reveal-points').textContent = '+' + r.points;
+  const pct = finalTotalVotes > 0 ? Math.round((r.votes / finalTotalVotes) * 100) : 0;
 
-  const votersEl = document.getElementById('final-reveal-voters');
-  votersEl.innerHTML = r.voters.map((voter, i) => {
-    const voterId = typeof voter === 'object' ? voter.id : null;
-    const voterName = typeof voter === 'object' ? voter.name : voter;
-    const count = typeof voter === 'object' ? voter.count : 1;
-    const countBadge = count > 1 ? `<span class="voter-count">x${count}</span>` : '';
-    const avatar = AVATARS[voterId ? getPlayerAvatarIndex(voterId) : 0];
-    return `<div class="voter-avatar voter-avatar-lg" style="animation-delay: ${i * 0.2}s">
-      <div class="voter-avatar-icon-lg"><img src="${avatar.img}" class="voter-char-img"></div>
-      <div class="voter-avatar-name-lg">${esc(voterName)}${countBadge}</div>
-    </div>`;
-  }).join('');
+  // Highlight the grid card
+  const gridCard = document.getElementById(`final-grid-${finalRevealIndex}`);
+  if (gridCard) gridCard.classList.add('revealing');
 
-  const pctEl = document.getElementById('final-reveal-pct');
+  // Show popup overlay
+  const overlay = document.getElementById('final-popup-overlay');
+  const card = document.getElementById('final-popup-card');
+  overlay.classList.remove('hidden');
+  card.className = 'final-popup-card pop-in' + (isLast ? ' winner-card' : '');
+
+  document.getElementById('final-popup-answer').textContent = r.text;
+  document.getElementById('final-popup-player').textContent = r.playerName;
+  document.getElementById('final-popup-points').textContent = '+' + r.points;
+
+  // Hide voters and pct initially
+  const votersEl = document.getElementById('final-popup-voters');
+  const pctEl = document.getElementById('final-popup-pct');
+  votersEl.classList.add('hidden');
   pctEl.classList.add('hidden');
+  votersEl.innerHTML = '';
+
+  // After 2s: show voters + percentage
   setTimeout(() => {
-    const totalVotes = finalRevealResults.reduce((sum, r2) => sum + r2.votes, 0);
-    const pct = totalVotes > 0 ? Math.round((r.votes / totalVotes) * 100) : 0;
+    // Voter avatars
+    votersEl.innerHTML = r.voters.map((voter, i) => {
+      const voterId = typeof voter === 'object' ? voter.id : null;
+      const voterName = typeof voter === 'object' ? voter.name : voter;
+      const count = typeof voter === 'object' ? voter.count : 1;
+      const countBadge = count > 1 ? `<span class="voter-count">x${count}</span>` : '';
+      const avatar = AVATARS[voterId ? getPlayerAvatarIndex(voterId) : 0];
+      return `<div class="voter-avatar voter-avatar-lg" style="animation-delay: ${i * 0.15}s">
+        <div class="voter-avatar-icon-lg"><img src="${avatar.img}" class="voter-char-img"></div>
+        <div class="voter-avatar-name-lg">${esc(voterName)}${countBadge}</div>
+      </div>`;
+    }).join('');
+    votersEl.classList.remove('hidden');
+
+    // Percentage circle
     pctEl.textContent = pct + '%';
-    pctEl.classList.remove('hidden'); pctEl.classList.add('pop-in');
+    pctEl.classList.remove('hidden');
+    pctEl.classList.add('pop-in');
   }, 2000);
 
-  const displayTime = isLast ? 4000 : 3500;
+  // After 5s total (2s wait + 3s display): close popup, move to next
   setTimeout(() => {
-    const list = document.getElementById('final-results-list');
-    const qBadge = r.quiflotz ? '<span class="quiflotz-badge">💨 QUIFLOTZ!</span>' : '';
-    const medal = isLast ? '👑 ' : '';
-    list.innerHTML = `<div class="result-card${r.quiflotz ? ' quiflotz-winner' : ''}">
-      <div class="result-header"><span class="result-name">${medal}${esc(r.playerName)}</span><span class="result-score">+${r.points}</span></div>
-      <div class="result-answer">${esc(r.text)}</div>${qBadge}
-    </div>` + list.innerHTML;
-    card.style.display = 'none';
+    overlay.classList.add('hidden');
+    if (gridCard) {
+      gridCard.classList.remove('revealing');
+      gridCard.classList.add('revealed');
+      // Update grid card with result info
+      gridCard.innerHTML += `<div class="final-grid-pct">${pct}%</div>`;
+    }
     finalRevealIndex++;
-    if (finalRevealIndex < finalRevealResults.length) setTimeout(revealNextFinalAnswer, 500);
-  }, displayTime);
+    if (finalRevealIndex < finalRevealResults.length) {
+      setTimeout(revealNextFinalAnswer, 800);
+    }
+  }, 5000);
 }
-
-document.getElementById('btn-after-final').addEventListener('click', () => socket.emit('next-sub-round'));
 
 // ============================================================
 // SCOREBOARD

@@ -238,6 +238,18 @@ io.on('connection', (socket) => {
     startSubRound(room, 1);
   });
 
+  // Host signals narrator finished — advance past splash
+  socket.on('splash-done', () => {
+    const room = rooms.get(socket.roomCode);
+    if (!room || socket.id !== room.hostId) return;
+    if (room.splashCallback) {
+      clearTimeout(room.timer);
+      const cb = room.splashCallback;
+      room.splashCallback = null;
+      cb();
+    }
+  });
+
   socket.on('restart-game', () => {
     const room = rooms.get(socket.roomCode);
     if (!room || socket.id !== room.hostId) return;
@@ -286,8 +298,24 @@ function showSplashThenDo(room, text, type, duration, callback) {
     type = null;
   }
   room.phase = 'splash';
-  io.to(room.code).emit('show-splash', { text, type, duration });
-  room.timer = setTimeout(callback, duration);
+
+  // Narrated splash types — host will signal when narrator finishes
+  const narratedTypes = ['pre-game', 'round-1-start', 'round-2-start', 'round-3-start', 'round-4-start',
+                         'scoreboard-1', 'scoreboard-2', 'scoreboard-3'];
+  const isNarrated = type && narratedTypes.includes(type);
+
+  io.to(room.code).emit('show-splash', { text, type, duration, waitForNarrator: isNarrated });
+
+  if (isNarrated) {
+    // Wait for host to signal narrator finished (with fallback timeout)
+    room.splashCallback = callback;
+    room.timer = setTimeout(() => {
+      room.splashCallback = null;
+      callback();
+    }, 20000); // 20s fallback safety
+  } else {
+    room.timer = setTimeout(callback, duration);
+  }
 }
 
 function startSubRound(room, subRoundNum) {
@@ -325,7 +353,7 @@ function startSubRound(room, subRoundNum) {
 
     room.timer = setTimeout(() => {
       // "נגמר הזמן" splash then start matchups
-      showSplashThenDo(room, 'נגמר הזמן!', 3000, () => beginMatchupSequence(room));
+      showSplashThenDo(room, 'נגמר הזמן!', 'time-is-up', 4000, () => beginMatchupSequence(room));
     }, room.settings.writeTime * 1000);
 
   } else {
@@ -348,7 +376,7 @@ function startSubRound(room, subRoundNum) {
     engine.getSpectators(room).forEach(p => io.to(p.id).emit('spectator-final-writing', data));
 
     room.timer = setTimeout(() => {
-      showSplashThenDo(room, 'נגמר הזמן!', 3000, () => startFinalVoting(room));
+      showSplashThenDo(room, 'נגמר הזמן!', 'time-is-up', 4000, () => startFinalVoting(room));
     }, writeTime * 1000);
   }
 }
@@ -518,10 +546,10 @@ function showFinalResult(room) {
     scores: engine.getScoreboard(room)
   });
 
-  // Auto-advance: final reveal takes ~5s per answer + extra time
+  // Auto-advance: 1.5s initial + ~6.3s per answer (5s popup + 0.8s gap + buffer)
   // After round 3 final results → go directly to round-complete (winner), skip double scoreboard
-  const revealCount = results.filter(r => r.points > 0).length || 1;
-  const totalRevealTime = revealCount * 5500 + 3000;
+  const revealCount = results.length || 1;
+  const totalRevealTime = 1500 + revealCount * 6300 + 3000;
   room.timer = setTimeout(() => {
     showRoundComplete(room);
   }, totalRevealTime);
@@ -646,7 +674,7 @@ function startTiebreakerRound(room, tiedPlayers) {
   });
 
   room.timer = setTimeout(() => {
-    showSplashThenDo(room, 'נגמר הזמן!', 3000, () => beginMatchupSequence(room));
+    showSplashThenDo(room, 'נגמר הזמן!', 'time-is-up', 4000, () => beginMatchupSequence(room));
   }, writeTime * 1000);
 }
 

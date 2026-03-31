@@ -190,21 +190,23 @@
 
   <!-- FINAL ROUND RESULTS -->
   <div id="screen-final-result" class="screen">
-    <div class="phase-container">
+    <div class="phase-container final-result-container">
       <div class="sub-round-header">
         <span class="round-badge">🔥 תוצאות הסיבוב האחרון</span>
         <span class="multiplier-badge">x3</span>
       </div>
       <div class="prompt-text-inline" id="final-result-prompt"></div>
-      <div class="final-reveal-card" id="final-reveal-card" style="display:none">
-        <div class="final-reveal-answer" id="final-reveal-answer"></div>
-        <div class="final-reveal-voters" id="final-reveal-voters"></div>
-        <div class="final-reveal-pct hidden" id="final-reveal-pct"></div>
-        <div class="final-reveal-player" id="final-reveal-player"></div>
-        <div class="final-reveal-points" id="final-reveal-points"></div>
+      <div class="final-answers-grid" id="final-answers-grid"></div>
+      <!-- Popup overlay for focused answer -->
+      <div class="final-popup-overlay hidden" id="final-popup-overlay">
+        <div class="final-popup-card" id="final-popup-card">
+          <div class="final-popup-answer" id="final-popup-answer"></div>
+          <div class="final-popup-voters hidden" id="final-popup-voters"></div>
+          <div class="final-popup-pct-circle hidden" id="final-popup-pct"></div>
+          <div class="final-popup-player" id="final-popup-player"></div>
+          <div class="final-popup-points" id="final-popup-points"></div>
+        </div>
       </div>
-      <div class="results-list" id="final-results-list"></div>
-      <button class="btn btn-next" id="btn-after-final" style="display:none">טבלת ניקוד ➡️</button>
     </div>
   </div>
 
