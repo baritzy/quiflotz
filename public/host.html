@@ -158,33 +158,22 @@
     </div>
   </div>
 
-  <!-- MATCHUP RESULT -->
+  <!-- MATCHUP RESULT (popup reveal style) -->
   <div id="screen-matchup-result" class="screen">
-    <div class="phase-container">
+    <div class="phase-container matchup-result-container">
       <div class="prompt-text-inline" id="result-prompt"></div>
-      <div class="matchup-result-arena">
-        <div class="matchup-result-side left" id="result-left">
-          <div class="result-player-name" id="result-name1"></div>
-          <div class="result-answer-text" id="result-text1"></div>
-          <div class="result-voters-area" id="result-voters1"></div>
-          <div class="result-percentage hidden" id="result-pct1">50%</div>
-          <div class="result-bar-container">
-            <div class="result-bar left-bar" id="result-bar1"></div>
-          </div>
-          <div class="result-points" id="result-pts1">+0</div>
-        </div>
-        <div class="matchup-result-side right" id="result-right">
-          <div class="result-player-name" id="result-name2"></div>
-          <div class="result-answer-text" id="result-text2"></div>
-          <div class="result-voters-area" id="result-voters2"></div>
-          <div class="result-percentage hidden" id="result-pct2">50%</div>
-          <div class="result-bar-container">
-            <div class="result-bar right-bar" id="result-bar2"></div>
-          </div>
-          <div class="result-points" id="result-pts2">+0</div>
+      <div class="matchup-answers-pair" id="matchup-answers-pair"></div>
+      <!-- Popup overlay for focused answer -->
+      <div class="matchup-popup-overlay hidden" id="matchup-popup-overlay">
+        <div class="final-popup-card" id="matchup-popup-card">
+          <div class="final-popup-answer" id="matchup-popup-answer"></div>
+          <div class="final-popup-voters hidden" id="matchup-popup-voters"></div>
+          <div class="final-popup-pct-circle hidden" id="matchup-popup-pct"></div>
+          <div class="final-popup-player" id="matchup-popup-player"></div>
+          <div class="final-popup-points" id="matchup-popup-points"></div>
         </div>
       </div>
-      <button class="btn btn-next" id="btn-next-matchup">הבא ➡️</button>
+      <button class="btn btn-next" id="btn-next-matchup" style="display:none">הבא ➡️</button>
     </div>
   </div>
 
@@ -222,8 +211,9 @@
 
   <!-- ROUND COMPLETE (shows final scoreboard first, then winner) -->
   <div id="screen-round-complete" class="screen">
-    <div class="final-container">
+    <div class="phase-container">
       <h1 class="scoreboard-title">🏆 תוצאות סופיות</h1>
+      <div class="scoreboard-sub" id="round-complete-sub">אחרי כל הסיבובים</div>
       <div class="final-scoreboard" id="round-final-scores"></div>
     </div>
   </div>

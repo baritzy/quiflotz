@@ -39,6 +39,11 @@
   --radius-sm: 12px;
 }
 
+/* Host screens: scale up all rem-based sizes for TV/laptop viewing */
+html:has(.host-body) {
+  font-size: 18px;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -1070,8 +1075,8 @@ body {
 }
 
 .winner-character-big img {
-  width: 200px;
-  height: 200px;
+  width: 240px;
+  height: 240px;
   object-fit: contain;
   filter: drop-shadow(0 8px 25px rgba(0,0,0,0.5));
   animation: winnerBounce 1.5s ease-in-out infinite 1.1s;
@@ -1450,104 +1455,81 @@ body {
 }
 
 /* ============================================
-   MATCHUP RESULT (1v1)
+   MATCHUP RESULT — Popup reveal (1v1)
    ============================================ */
 
-.matchup-result-arena {
-  display: flex;
-  gap: 30px;
-  justify-content: center;
-  margin: 20px auto;
-  max-width: 800px;
+.matchup-result-container {
+  position: relative;
+  overflow: hidden;
 }
 
-.matchup-result-side {
+.matchup-answers-pair {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  padding: 20px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.matchup-pair-card {
   flex: 1;
   background: var(--bg-card);
-  border: 2px solid rgba(255,255,255,0.1);
+  border: 3px solid var(--cyan);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 24px 20px;
   text-align: center;
-  transition: all 0.3s;
+  position: relative;
+  transition: all 0.4s ease;
+  opacity: 0.7;
 }
 
-.matchup-result-side.winner {
-  border-color: var(--yellow);
-  box-shadow: 0 0 25px rgba(255, 215, 0, 0.3);
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), var(--bg-card));
-}
-
-.matchup-result-side.disqualified {
+.matchup-pair-card.dq {
   opacity: 0.5;
-  filter: grayscale(0.5);
-  border-color: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.1);
 }
 
-.matchup-result-side.disqualified .result-answer-text {
-  color: var(--orange);
-  font-style: italic;
+.matchup-pair-card.revealing {
+  border-color: var(--yellow);
+  opacity: 1;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
 }
 
-.matchup-result-side.quiflotz-glow {
-  border-color: var(--neon-green);
-  box-shadow: 0 0 35px rgba(57, 255, 20, 0.4);
-  background: linear-gradient(135deg, rgba(57, 255, 20, 0.15), var(--bg-card));
+.matchup-pair-card.revealed {
+  opacity: 1;
+  border-color: var(--mint);
 }
 
-.result-player-name {
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: var(--yellow);
-  margin-bottom: 10px;
-}
-
-.result-answer-text {
-  font-family: var(--font-display);
-  font-size: 1.8rem;
-  font-weight: 600;
-  direction: ltr;
-  margin-bottom: 15px;
-  min-height: 40px;
-}
-
-.result-bar-container {
-  width: 100%;
-  height: 12px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 6px;
-  overflow: hidden;
-  margin: 8px 0;
-}
-
-.result-bar {
-  height: 100%;
-  border-radius: 6px;
-  transition: width 1s ease;
-  width: 0%;
-}
-
-.result-bar.left-bar {
-  background: linear-gradient(90deg, var(--cyan), #00aaff);
-}
-
-.result-bar.right-bar {
-  background: linear-gradient(90deg, var(--pink), var(--orange));
-}
-
-.result-percentage {
-  font-family: var(--font-display);
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.result-points {
+.matchup-pair-answer {
   font-family: var(--font-display);
   font-size: 1.6rem;
   font-weight: 700;
-  color: var(--neon-green);
-  margin-top: 5px;
+  direction: ltr;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.matchup-pair-player {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--yellow);
+}
+
+/* Popup overlay — reuse final-popup styles */
+.matchup-popup-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 10, 30, 0.85);
+  z-index: 50;
+  transition: opacity 0.3s ease;
+}
+
+.matchup-popup-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ============================================
@@ -1750,11 +1732,11 @@ body {
 }
 
 .score-block-large {
-  width: 180px;
+  width: 210px;
 }
 
 .score-block-small {
-  width: 150px;
+  width: 170px;
 }
 
 .score-block-rank {
@@ -1778,15 +1760,15 @@ body {
 }
 
 .score-block-avatar {
-  width: 75px;
-  height: 75px;
+  width: 90px;
+  height: 90px;
   object-fit: contain;
   filter: drop-shadow(0 4px 10px rgba(0,0,0,0.4));
 }
 
 .score-block-small .score-block-avatar {
-  width: 60px;
-  height: 60px;
+  width: 72px;
+  height: 72px;
 }
 
 .score-block-info {
@@ -2396,7 +2378,7 @@ body {
 /* Bare prompt text — no speech bubble, just big text */
 .prompt-text-bare {
   font-family: var(--font-display);
-  font-size: 4rem;
+  font-size: 3.55rem; /* compensate for 18px base — keep same pixel size */
   font-weight: 700;
   line-height: 1.3;
   color: var(--cream);
@@ -2453,13 +2435,13 @@ body {
 }
 
 .voter-avatar-icon-lg {
-  width: 65px;
-  height: 65px;
+  width: 78px;
+  height: 78px;
 }
 
 .voter-char-img {
-  width: 65px;
-  height: 65px;
+  width: 78px;
+  height: 78px;
   object-fit: contain;
   animation: voterIdle 2s ease-in-out infinite;
   animation-delay: inherit;
@@ -2672,16 +2654,16 @@ body {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  max-height: 80px;
+  max-height: 95px;
 }
 
 .circle-character .avatar-img {
-  width: 55px;
-  height: 55px;
+  width: 65px;
+  height: 65px;
 }
 
 .floor-avatar-character .avatar-img {
-  width: 50px;
+  width: 60px;
   height: 50px;
 }
 

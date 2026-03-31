@@ -488,16 +488,14 @@ function showMatchupResult(room) {
 
   io.to(room.code).emit('matchup-result', data);
 
-  // Show "בואו נראה מה כולם הצביעו" splash, then voter reveal, then auto-advance
-  const splashTime = 2000;
-  const voterRevealTime = 2000;
-  const percentageTime = 2000;
-  const quiflotzTime = hasQuiflotz ? 2500 : 0;
+  // Popup reveal style: 1s initial + 2 answers × 5s each + 0.8s gap + buffer
+  const quiflotzTime = hasQuiflotz ? 3000 : 0;
+  const totalTime = 1000 + 5000 + 800 + 5000 + quiflotzTime + 2000;
 
   // Auto-advance to next matchup after display
   room.timer = setTimeout(() => {
     advanceAfterMatchup(room);
-  }, splashTime + voterRevealTime + percentageTime + quiflotzTime + 1500);
+  }, totalTime);
 }
 
 function advanceAfterMatchup(room) {

@@ -62,6 +62,7 @@ const SFX = {
   countdown10: new Audio('/assets/Narrator-10-seconds.mp3'),
   countdown5: new Audio('/assets/Narrator-5-seconds.mp3'),
   timeIsUp: new Audio('/assets/Narrator-time-is-up.mp3'),
+  scoreCount: new Audio('/assets/SFX-score-count.mp3'),
 };
 
 const ALL_AUDIO = [
@@ -507,41 +508,42 @@ socket.on('matchup-vote-progress', ({ count }) => {
 });
 
 // ============================================================
-// MATCHUP RESULT
+// MATCHUP RESULT — Popup reveal style (same as round 3)
 // ============================================================
+let matchupRevealData = [];
+let matchupRevealIndex = 0;
+
 socket.on('matchup-result', ({ result, hasQuiflotz }) => {
   showScreen('matchup-result');
   document.getElementById('result-prompt').textContent = result.prompt.text;
-  document.getElementById('result-name1').textContent = result.player1.name;
-  document.getElementById('result-name2').textContent = result.player2.name;
 
   const isDQ1 = result.player1.answer === '💨 אין תשובה' || result.player1.answer === '(no answer)';
   const isDQ2 = result.player2.answer === '💨 אין תשובה' || result.player2.answer === '(no answer)';
 
-  document.getElementById('result-text1').textContent = isDQ1 ? '💨 פסול!' : result.player1.answer;
-  document.getElementById('result-text2').textContent = isDQ2 ? '💨 פסול!' : result.player2.answer;
-  document.getElementById('result-pts1').textContent = '+' + result.player1.points;
-  document.getElementById('result-pts2').textContent = '+' + result.player2.points;
-  document.getElementById('result-bar1').style.width = '0%';
-  document.getElementById('result-bar2').style.width = '0%';
-  document.getElementById('result-pct1').classList.add('hidden');
-  document.getElementById('result-pct2').classList.add('hidden');
+  // Build reveal data: loser first, winner second
+  const totalVotes = (result.player1.percentage + result.player2.percentage) || 100;
+  const sides = [
+    { name: result.player1.name, answer: isDQ1 ? '💨 פסול!' : result.player1.answer, pct: result.player1.percentage, points: result.player1.points, voters: result.player1.voters, quiflotz: result.player1.quiflotz, isDQ: isDQ1 },
+    { name: result.player2.name, answer: isDQ2 ? '💨 פסול!' : result.player2.answer, pct: result.player2.percentage, points: result.player2.points, voters: result.player2.voters, quiflotz: result.player2.quiflotz, isDQ: isDQ2 }
+  ];
+  // Sort: loser first (less votes), winner last
+  sides.sort((a, b) => a.points - b.points);
+  matchupRevealData = sides;
+  matchupRevealIndex = 0;
 
-  const left = document.getElementById('result-left');
-  const right = document.getElementById('result-right');
-  left.className = 'matchup-result-side left';
-  right.className = 'matchup-result-side right';
-  if (isDQ1) left.classList.add('disqualified');
-  if (isDQ2) right.classList.add('disqualified');
-  left.classList.toggle('winner', !isDQ1 && result.player1.points > result.player2.points);
-  right.classList.toggle('winner', !isDQ2 && result.player2.points > result.player1.points);
-  left.classList.toggle('quiflotz-glow', result.player1.quiflotz);
-  right.classList.toggle('quiflotz-glow', result.player2.quiflotz);
+  // Build the pair of answer cards
+  const pair = document.getElementById('matchup-answers-pair');
+  pair.innerHTML = sides.map((s, i) => `
+    <div class="matchup-pair-card ${s.isDQ ? 'dq' : ''}" id="matchup-pair-${i}">
+      <div class="matchup-pair-answer">${esc(s.answer)}</div>
+      <div class="matchup-pair-player">${esc(s.name)}</div>
+    </div>
+  `).join('');
 
-  showVoterAvatars('result-voters1', result.player1.voters);
-  showVoterAvatars('result-voters2', result.player2.voters);
+  // Hide overlay
+  document.getElementById('matchup-popup-overlay').classList.add('hidden');
 
-  // Narrator priority: no-show wins over quiflotz announcement
+  // Narrator priority
   const hasNoShow = (isDQ1 || isDQ2) && currentSubRound <= 2;
   if (hasNoShow) {
     playNarrator(NARRATOR.noShow);
@@ -549,47 +551,85 @@ socket.on('matchup-result', ({ result, hasQuiflotz }) => {
     playNarrator(NARRATOR.quiflotz);
   }
 
-  // Quiflotz overlay (visual only, narrator handled above)
+  // Quiflotz overlay
   if (hasQuiflotz && !hasNoShow) {
     const ov = document.getElementById('quiflotz-overlay');
     ov.classList.remove('hidden');
     setTimeout(() => ov.classList.add('hidden'), 3000);
   }
 
+  // Start popup reveal sequence after brief pause
+  setTimeout(revealNextMatchupAnswer, 1000);
+});
+
+function revealNextMatchupAnswer() {
+  if (matchupRevealIndex >= matchupRevealData.length) return;
+
+  const r = matchupRevealData[matchupRevealIndex];
+  const isLast = matchupRevealIndex === matchupRevealData.length - 1;
+
+  // Highlight grid card
+  const gridCard = document.getElementById(`matchup-pair-${matchupRevealIndex}`);
+  if (gridCard) gridCard.classList.add('revealing');
+
+  // Show popup overlay
+  const overlay = document.getElementById('matchup-popup-overlay');
+  const card = document.getElementById('matchup-popup-card');
+  overlay.classList.remove('hidden');
+  card.className = 'final-popup-card pop-in' + (isLast ? ' winner-card' : '');
+
+  document.getElementById('matchup-popup-answer').textContent = r.answer;
+  document.getElementById('matchup-popup-player').textContent = r.name;
+  document.getElementById('matchup-popup-points').textContent = '+' + r.points;
+
+  const votersEl = document.getElementById('matchup-popup-voters');
+  const pctEl = document.getElementById('matchup-popup-pct');
+  votersEl.classList.add('hidden');
+  pctEl.classList.add('hidden');
+  votersEl.innerHTML = '';
+
+  // After 2s: show voters + percentage + animate points
   setTimeout(() => {
-    const pct1El = document.getElementById('result-pct1');
-    const pct2El = document.getElementById('result-pct2');
-    if (!isDQ1 && !isDQ2) {
-      pct1El.textContent = result.player1.percentage + '%';
-      pct2El.textContent = result.player2.percentage + '%';
-      pct1El.classList.remove('hidden'); pct2El.classList.remove('hidden');
-      pct1El.classList.add('pop-in'); pct2El.classList.add('pop-in');
-      document.getElementById('result-bar1').style.width = result.player1.percentage + '%';
-      document.getElementById('result-bar2').style.width = result.player2.percentage + '%';
-    } else if (isDQ1 && !isDQ2) {
-      pct2El.textContent = '100%'; pct2El.classList.remove('hidden'); pct2El.classList.add('pop-in');
-      document.getElementById('result-bar2').style.width = '100%';
-    } else if (!isDQ1 && isDQ2) {
-      pct1El.textContent = '100%'; pct1El.classList.remove('hidden'); pct1El.classList.add('pop-in');
-      document.getElementById('result-bar1').style.width = '100%';
+    votersEl.innerHTML = buildVoterAvatarsHTML(r.voters);
+    votersEl.classList.remove('hidden');
+    pctEl.textContent = r.pct + '%';
+    pctEl.classList.remove('hidden');
+    pctEl.classList.add('pop-in');
+
+    // Animate points counting
+    const pointsEl = document.getElementById('matchup-popup-points');
+    if (r.points > 0) {
+      animateScoreCount(pointsEl, r.points, 700, '+');
+    } else {
+      pointsEl.textContent = '+0';
     }
   }, 2000);
 
-  document.getElementById('btn-next-matchup').style.display = 'none';
-});
+  // After 5s: close popup, next
+  setTimeout(() => {
+    overlay.classList.add('hidden');
+    if (gridCard) {
+      gridCard.classList.remove('revealing');
+      gridCard.classList.add('revealed');
+      gridCard.innerHTML += `<div class="final-grid-pct">${r.pct}%</div>`;
+    }
+    matchupRevealIndex++;
+    if (matchupRevealIndex < matchupRevealData.length) {
+      setTimeout(revealNextMatchupAnswer, 800);
+    }
+  }, 5000);
+}
 
-function showVoterAvatars(containerId, voters) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  if (!voters || voters.length === 0) { el.innerHTML = ''; return; }
+function buildVoterAvatarsHTML(voters) {
+  if (!voters || voters.length === 0) return '';
   const shownIds = new Set();
-  el.innerHTML = voters.map((voter, i) => {
+  return voters.map((voter, i) => {
     const voterId = typeof voter === 'object' ? voter.id : null;
     const voterName = typeof voter === 'object' ? voter.name : voter.replace(/ \(x\d+\)$/, '');
     if (voterId && shownIds.has(voterId)) return '';
     if (voterId) shownIds.add(voterId);
     const avatar = AVATARS[voterId ? getPlayerAvatarIndex(voterId) : 0];
-    return `<div class="voter-avatar voter-avatar-lg" style="animation-delay: ${i * 0.2}s">
+    return `<div class="voter-avatar voter-avatar-lg" style="animation-delay: ${i * 0.15}s">
       <div class="voter-avatar-icon-lg"><img src="${avatar.img}" class="voter-char-img"></div>
       <div class="voter-avatar-name-lg">${esc(voterName)}</div>
     </div>`;
@@ -686,7 +726,7 @@ function revealNextFinalAnswer() {
   pctEl.classList.add('hidden');
   votersEl.innerHTML = '';
 
-  // After 2s: show voters + percentage
+  // After 2s: show voters + percentage + animate points
   setTimeout(() => {
     // Voter avatars
     votersEl.innerHTML = r.voters.map((voter, i) => {
@@ -706,6 +746,14 @@ function revealNextFinalAnswer() {
     pctEl.textContent = pct + '%';
     pctEl.classList.remove('hidden');
     pctEl.classList.add('pop-in');
+
+    // Animate points counting
+    const pointsEl = document.getElementById('final-popup-points');
+    if (r.points > 0) {
+      animateScoreCount(pointsEl, r.points, 700, '+');
+    } else {
+      pointsEl.textContent = '+0';
+    }
   }, 2000);
 
   // After 5s total (2s wait + 3s display): close popup, move to next
@@ -762,7 +810,11 @@ socket.on('round-complete', ({ scores, winner }) => {
       const avatar = AVATARS[getPlayerAvatarIndex(winner.id)];
       document.getElementById('winner-character-big').innerHTML = `<img src="${avatar.img}" alt="">`;
       document.getElementById('winner-name-big').textContent = winner.name;
-      document.getElementById('winner-score-big').textContent = winner.score + ' נקודות';
+      const winScoreEl = document.getElementById('winner-score-big');
+      winScoreEl.textContent = '0 נקודות';
+      setTimeout(() => {
+        animateScoreCount(winScoreEl, winner.score, 1200, '', ' נקודות');
+      }, 500);
       document.getElementById('credits-scroll').innerHTML = CREDITS_HTML;
     }, 3000);
   }
@@ -801,6 +853,14 @@ function renderScoreboard(containerId, scores) {
   }
   html += '</div>';
   el.innerHTML = html;
+
+  // Animate score counting after a brief delay for slide-in animation
+  setTimeout(() => {
+    el.querySelectorAll('.score-block-points[data-score]').forEach((pointsEl, i) => {
+      const target = parseInt(pointsEl.dataset.score) || 0;
+      setTimeout(() => animateScoreCount(pointsEl, target, 900), i * 200);
+    });
+  }, 500);
 }
 
 function renderScoreBlock(s, rankIndex, delay) {
@@ -813,9 +873,58 @@ function renderScoreBlock(s, rankIndex, delay) {
     <div class="score-block-character"><img src="${avatar.img}" alt="" class="score-block-avatar breathing"></div>
     <div class="score-block-info">
       <div class="score-block-name">${esc(s.name)}</div>
-      <div class="score-block-points">${s.score}</div>
+      <div class="score-block-points" data-score="${s.score}">0</div>
     </div>
   </div>`;
+}
+
+/**
+ * Animate a score counting up from 0 to target value.
+ * Plays SFX.scoreCount during counting.
+ * prefix: optional string to prepend (e.g. '+')
+ * suffix: optional string to append (e.g. ' נקודות')
+ */
+function animateScoreCount(element, targetValue, duration, prefix, suffix) {
+  if (!element || targetValue <= 0) {
+    if (element) element.textContent = (prefix || '') + targetValue + (suffix || '');
+    return;
+  }
+  duration = duration || 800;
+  prefix = prefix || '';
+  suffix = suffix || '';
+  const start = performance.now();
+  let sfxPlaying = false;
+
+  // Play score count SFX
+  if (!isMuted && audioUnlocked) {
+    SFX.scoreCount.currentTime = 0;
+    SFX.scoreCount.volume = userVolume * 0.6;
+    SFX.scoreCount.play().catch(() => {});
+    sfxPlaying = true;
+  }
+
+  function tick(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    // Ease out
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(eased * targetValue);
+    element.textContent = prefix + current + suffix;
+
+    if (progress < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      element.textContent = prefix + targetValue + suffix;
+      // Stop SFX when done
+      if (sfxPlaying) {
+        setTimeout(() => {
+          SFX.scoreCount.pause();
+          SFX.scoreCount.currentTime = 0;
+        }, 100);
+      }
+    }
+  }
+  requestAnimationFrame(tick);
 }
 
 function esc(text) {
