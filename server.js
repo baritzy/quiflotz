@@ -99,8 +99,10 @@ io.on('connection', (socket) => {
     room.mainRound++;
     room.settings.writeTime = 90;
     room.settings.finalWriteTime = 45;
-    // Show round splash, then start
-    showSplashThenDo(room, `סיבוב 1`, 5000, () => startSubRound(room, 1));
+    // "מיד מתחילים" splash with narrator, then round 1 splash
+    showSplashThenDo(room, 'מיד מתחילים!', 'pre-game', 5000, () => {
+      showSplashThenDo(room, 'סיבוב 1', 'round-1-start', 7000, () => startSubRound(room, 1));
+    });
   });
 
   // --- Sub-round answer submission (rounds 1 & 2) ---
@@ -276,9 +278,15 @@ io.on('connection', (socket) => {
 // GAME FLOW FUNCTIONS — Fully automated with splashes & timings
 // ============================================================
 
-function showSplashThenDo(room, text, duration, callback) {
+function showSplashThenDo(room, text, type, duration, callback) {
+  // Support old 3-arg calls: showSplashThenDo(room, text, duration, callback)
+  if (typeof type === 'number') {
+    callback = duration;
+    duration = type;
+    type = null;
+  }
   room.phase = 'splash';
-  io.to(room.code).emit('show-splash', { text, duration });
+  io.to(room.code).emit('show-splash', { text, type, duration });
   room.timer = setTimeout(callback, duration);
 }
 
@@ -359,8 +367,9 @@ function beginMatchupSequence(room) {
 function startNextMatchup(room) {
   const matchup = engine.getCurrentMatchup(room);
   if (!matchup) {
-    // All matchups done — show scoreboard
-    showSplashThenDo(room, 'בואו נראה את התוצאות עד כה', 3000, () => showScoreboard(room));
+    // All matchups done — show scoreboard with round-specific narrator
+    const scoreType = room.subRound === 1 ? 'scoreboard-1' : room.subRound === 2 ? 'scoreboard-2' : 'scoreboard-3';
+    showSplashThenDo(room, 'בואו נראה את התוצאות עד כה', scoreType, 5000, () => showScoreboard(room));
     return;
   }
 
@@ -468,7 +477,8 @@ function advanceAfterMatchup(room) {
   if (engine.nextMatchup(room)) {
     startNextMatchup(room);
   } else {
-    showSplashThenDo(room, 'בואו נראה את התוצאות עד כה', 3000, () => showScoreboard(room));
+    const scoreType = room.subRound === 1 ? 'scoreboard-1' : room.subRound === 2 ? 'scoreboard-2' : 'scoreboard-3';
+    showSplashThenDo(room, 'בואו נראה את התוצאות עד כה', scoreType, 5000, () => showScoreboard(room));
   }
 }
 
@@ -512,7 +522,8 @@ function showFinalResult(room) {
   const revealCount = results.filter(r => r.points > 0).length || 1;
   const totalRevealTime = revealCount * 5500 + 3000;
   room.timer = setTimeout(() => {
-    showSplashThenDo(room, 'בואו נראה את התוצאות הסופיות לסיבוב זה', 2000, () => {
+    const scoreType = 'scoreboard-3';
+    showSplashThenDo(room, 'בואו נראה את התוצאות הסופיות', scoreType, 5000, () => {
       showScoreboard(room);
     });
   }, totalRevealTime);
@@ -545,35 +556,100 @@ function showScoreboard(room) {
 function advanceToNextSubRound(room) {
   clearTimeout(room.timer);
   if (room.subRound === 1) {
-    showSplashThenDo(room, 'סיבוב 2', 5000, () => startSubRound(room, 2));
+    showSplashThenDo(room, 'סיבוב 2', 'round-2-start', 7000, () => startSubRound(room, 2));
   } else if (room.subRound === 2) {
-    showSplashThenDo(room, 'סיבוב 3', 5000, () => startSubRound(room, 3));
+    showSplashThenDo(room, 'סיבוב 3', 'round-3-start', 7000, () => startSubRound(room, 3));
   } else {
     showRoundComplete(room);
   }
 }
 
 function showRoundComplete(room) {
-  room.phase = 'round-complete';
   const scores = engine.getScoreboard(room);
+
+  // Check for tiebreaker — only after sub-round 3 (not after tiebreaker itself)
+  if (room.subRound === 3) {
+    const tied = engine.detectTie(room);
+    if (tied) {
+      // Tiebreaker! Round 4 with only the two tied players
+      showSplashThenDo(room, 'תיקו! סיבוב המחץ!', 'round-4-start', 7000, () => {
+        startTiebreakerRound(room, tied);
+      });
+      return;
+    }
+  }
+
+  // Normal winner declaration
+  room.phase = 'round-complete';
   const winner = scores[0] || null;
 
-  // Only host sees round-complete scoreboard + winner
   io.to(room.hostId).emit('round-complete', {
     mainRound: room.mainRound,
     scores,
     winner
   });
 
-  // Players see "look at the screen"
   room.players.forEach((player, id) => {
     if (player.connected && id !== room.hostId) {
       io.to(id).emit('show-splash', { text: 'הסתכלו על המסך הראשי!' });
     }
   });
+}
 
-  // Winner display (5s) → credits roll (auto) → "משחק חדש" button stays
-  // No auto-advance here — host decides to start new game
+function startTiebreakerRound(room, tiedPlayers) {
+  // Reuse round 1/2 matchup system with just 1 matchup between the 2 tied players
+  room.subRound = 4;
+  room.multiplier = 1; // Points don't really matter, winner of matchup wins
+
+  room.phase = 'writing';
+  // Pick a prompt using engine
+  const prompt = engine.pickPrompt(room, prompts);
+  room.matchups = [{
+    index: 0,
+    prompt,
+    player1: { id: tiedPlayers[0].id, name: tiedPlayers[0].name, answer: null },
+    player2: { id: tiedPlayers[1].id, name: tiedPlayers[1].name, answer: null },
+    votes: new Map(),
+    result: null
+  }];
+  room.currentMatchupIndex = 0;
+  room.writeStartTime = Date.now();
+
+  const writeTime = 45;
+  const tiedIds = new Set([tiedPlayers[0].id, tiedPlayers[1].id]);
+
+  // Tell host
+  const activePlayers = engine.getActivePlayers(room);
+  io.to(room.hostId).emit('sub-round-start', {
+    mainRound: room.mainRound,
+    subRound: 4,
+    multiplier: 1,
+    matchupCount: 1,
+    writeTime,
+    players: activePlayers.map((p, i) => ({ id: p.id, name: p.name, index: i }))
+  });
+
+  // Only the two tied players write
+  tiedPlayers.forEach(tp => {
+    const playerPrompts = engine.getPlayerPrompts(room, tp.id);
+    io.to(tp.id).emit('your-prompts', {
+      subRound: 4,
+      multiplier: 1,
+      prompts: playerPrompts,
+      writeTime
+    });
+  });
+
+  // Everyone else waits
+  room.players.forEach((player, id) => {
+    if (player.connected && !tiedIds.has(id) && id !== room.hostId) {
+      io.to(id).emit('spectator-writing', { subRound: 4, multiplier: 1 });
+    }
+  });
+
+  room.timer = setTimeout(() => {
+    showSplashThenDo(room, 'נגמר הזמן!', 3000, () => beginMatchupSequence(room));
+  }, writeTime * 1000);
 }
 
 const PORT = process.env.PORT || 3000;

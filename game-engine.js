@@ -401,6 +401,19 @@ class GameEngine {
       .map((p, i) => ({ rank: i + 1, name: p.name, score: p.score, id: p.id }));
   }
 
+  /**
+   * Detect if the top 2 players are tied.
+   * Returns the two tied player objects if tied, null otherwise.
+   */
+  detectTie(room) {
+    const scores = this.getScoreboard(room);
+    if (scores.length < 2) return null;
+    if (scores[0].score === scores[1].score) {
+      return [scores[0], scores[1]];
+    }
+    return null;
+  }
+
   resetRoom(room) {
     room.state = 'lobby';
     room.phase = 'waiting';

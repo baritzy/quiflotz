@@ -110,10 +110,6 @@
       </div>
     </div>
 
-    <div class="volume-controls" id="volume-controls">
-      <button class="mute-btn" id="mute-btn" onclick="toggleMute()">🔊</button>
-      <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.01" value="0.3" oninput="setVolume(this.value)">
-    </div>
   </div>
 
     <!-- WRITING PHASE -->
@@ -129,7 +125,7 @@
         <div class="waiting-text">📝 <span id="answer-progress">0/0</span> תשובות</div>
       </div>
       <div class="writing-prompt-area" id="writing-prompt-area" style="display:none">
-        <div class="prompt-card"><div class="prompt-text" id="writing-prompt-text"></div></div>
+        <div class="prompt-text-bare" id="writing-prompt-text"></div>
       </div>
       <div class="avatar-floor" id="avatar-floor"></div>
     </div>
@@ -230,16 +226,27 @@
     </div>
   </div>
 
-  <!-- WINNER ANNOUNCEMENT -->
+  <!-- PRE-WINNER SPLASH -->
+  <div id="screen-pre-winner" class="screen">
+    <div class="splash-text-container">
+      <div class="splash-text-content" id="pre-winner-text">והמנצח הוא...היא...הם...</div>
+    </div>
+  </div>
+
+  <!-- WINNER ANNOUNCEMENT + CREDITS -->
   <div id="screen-winner" class="screen">
-    <div class="winner-screen">
-      <h1 class="winner-title-text" id="winner-title">אנד דה וינר יז...</h1>
-      <div class="winner-character-big" id="winner-character-big"></div>
-      <div class="winner-name-big" id="winner-name-big"></div>
-      <div class="winner-score-big" id="winner-score-big"></div>
-      <div class="winner-buttons">
-        <button class="btn btn-start" id="btn-new-round">🔄 סיבוב חדש!</button>
-        <button class="btn btn-host-link" id="btn-back-lobby" style="margin-top:10px">🏠 חזרה ללובי</button>
+    <div class="winner-layout">
+      <div class="winner-left">
+        <h1 class="winner-title-text" id="winner-title">אנד דה וינר יז...</h1>
+        <div class="winner-character-big" id="winner-character-big"></div>
+        <div class="winner-name-big" id="winner-name-big"></div>
+        <div class="winner-score-big" id="winner-score-big"></div>
+        <div class="winner-buttons">
+          <button class="btn btn-start" id="btn-new-round">🔄 סיבוב חדש!</button>
+        </div>
+      </div>
+      <div class="winner-right" id="credits-panel">
+        <div class="credits-scroll" id="credits-scroll"></div>
       </div>
     </div>
   </div>
@@ -261,6 +268,12 @@
   <div id="quiflotz-overlay" class="quiflotz-overlay hidden">
     <div class="quiflotz-text">💨 QUIFLOTZ! 💨</div>
     <div class="quiflotz-sub">כל ההצבעות! ניקוד כפול!</div>
+  </div>
+
+  <!-- VOLUME CONTROLS (global, always visible) -->
+  <div class="volume-controls" id="volume-controls">
+    <button class="mute-btn" id="mute-btn" onclick="toggleMute()">🔊</button>
+    <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.01" value="0.3" oninput="setVolume(this.value)">
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
