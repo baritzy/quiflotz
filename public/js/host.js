@@ -72,42 +72,80 @@ let currentNarrator = null;
 let isMuted = false;
 let audioUnlocked = false;
 let currentSubRound = 1;
+let userVolume = 0.3; // Track user's chosen volume level
+let narratorResolve = null; // To prevent double-resolve
 
 function playMusic(track) {
   if (currentMusic === track && !currentMusic.paused) return;
-  if (currentMusic && currentMusic !== track) {
-    currentMusic.pause();
-    currentMusic.currentTime = 0;
-  }
+  stopMusic(); // Always fully stop previous music first
   currentMusic = track;
+  track.volume = userVolume;
   if (!isMuted && audioUnlocked) {
     track.play().catch(() => setTimeout(() => track.play().catch(() => {}), 200));
   }
 }
 
 function stopMusic() {
-  if (currentMusic) { currentMusic.pause(); currentMusic.currentTime = 0; currentMusic = null; }
+  if (currentMusic) {
+    currentMusic.pause();
+    currentMusic.currentTime = 0;
+    currentMusic = null;
+  }
 }
 
+// Duck music volume during narration, restore after
+function duckMusic() {
+  if (currentMusic) currentMusic.volume = userVolume * 0.2;
+}
+function unduckMusic() {
+  if (currentMusic) currentMusic.volume = userVolume;
+}
+
+/**
+ * Play narrator audio. Stops any previous narrator.
+ * If music is playing, ducks it for the duration then restores.
+ * If no music is playing (splash screens), plays narration alone.
+ */
 function playNarrator(variants) {
+  // Stop previous narrator
   if (currentNarrator) { currentNarrator.pause(); currentNarrator.currentTime = 0; }
+  if (narratorResolve) { narratorResolve(); narratorResolve = null; }
+
   const pick = variants[Math.floor(Math.random() * variants.length)];
   currentNarrator = pick;
   pick.currentTime = 0;
+  pick.volume = userVolume;
+
+  // Duck music if playing
+  if (currentMusic && !currentMusic.paused) duckMusic();
+
   if (!isMuted && audioUnlocked) pick.play().catch(() => {});
+
   return new Promise(resolve => {
-    pick.onended = resolve;
-    // Fallback timeout 15s
-    setTimeout(resolve, 15000);
+    let resolved = false;
+    const done = () => {
+      if (resolved) return;
+      resolved = true;
+      narratorResolve = null;
+      currentNarrator = null;
+      unduckMusic(); // Restore music volume
+      resolve();
+    };
+    narratorResolve = done;
+    pick.onended = done;
+    setTimeout(done, 15000); // Fallback
   });
 }
 
 function playSFX(audio) {
   audio.currentTime = 0;
+  audio.volume = userVolume;
   if (!isMuted && audioUnlocked) audio.play().catch(() => {});
   return new Promise(resolve => {
-    audio.onended = resolve;
-    setTimeout(resolve, 15000);
+    let resolved = false;
+    const done = () => { if (!resolved) { resolved = true; resolve(); } };
+    audio.onended = done;
+    setTimeout(done, 15000);
   });
 }
 
@@ -125,8 +163,10 @@ function toggleMute() {
 }
 
 function setVolume(val) {
-  const v = parseFloat(val);
-  ALL_AUDIO.forEach(a => { a.volume = v; });
+  userVolume = parseFloat(val);
+  // Apply to currently playing audio
+  if (currentMusic) currentMusic.volume = userVolume;
+  if (currentNarrator) currentNarrator.volume = userVolume;
 }
 
 window.toggleMute = toggleMute;
@@ -141,9 +181,8 @@ function dismissSplash() {
     const src = ctx.createBufferSource();
     src.buffer = buf; src.connect(ctx.destination); src.start(0);
   } catch(e) {}
-  MUSIC.lobby.currentTime = 0;
-  MUSIC.lobby.play().catch(() => setTimeout(() => MUSIC.lobby.play().catch(() => {}), 500));
   showScreen('lobby');
+  playMusic(MUSIC.lobby);
 }
 window.dismissSplash = dismissSplash;
 
@@ -371,7 +410,9 @@ socket.on('show-splash', ({ text, type, duration }) => {
   document.getElementById('splash-text-content').textContent = text;
   showScreen('splash-text');
 
-  // Play appropriate narrator based on type
+  // Splash screens = stop music, play narrator only
+  stopMusic();
+
   if (type === 'pre-game') {
     playNarrator(NARRATOR.letsStart);
   } else if (type === 'round-1-start') {
@@ -617,6 +658,7 @@ document.getElementById('btn-next-sub').addEventListener('click', () => socket.e
 // ROUND COMPLETE + WINNER
 // ============================================================
 socket.on('round-complete', ({ scores, winner }) => {
+  stopMusic(); // Ensure no leftover music
   showScreen('round-complete');
   renderScoreboard('round-final-scores', scores);
 
