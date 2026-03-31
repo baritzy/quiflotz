@@ -27,7 +27,19 @@ function getPlayerAvatar(playerId, playerName) {
 }
 
 function getPlayerAvatarIndex(playerId) {
-  return playerAvatarMap.get(playerId) || 0;
+  if (playerAvatarMap.has(playerId)) return playerAvatarMap.get(playerId);
+  // Assign next available avatar
+  const usedIndices = new Set(playerAvatarMap.values());
+  for (let i = 0; i < 8; i++) {
+    if (!usedIndices.has(i)) {
+      playerAvatarMap.set(playerId, i);
+      return i;
+    }
+  }
+  // Fallback: use count-based
+  const idx = playerAvatarMap.size % 8;
+  playerAvatarMap.set(playerId, idx);
+  return idx;
 }
 
 function avatarImg(index, cssClass) {
@@ -202,12 +214,8 @@ socket.on('player-left', ({ players, spectatorCount }) => updateLobby(players, s
 function updateLobby(players, spectatorCount) {
   document.getElementById('player-count').textContent = players.length;
 
-  // Update avatar map
-  players.forEach((p, i) => {
-    if (!playerAvatarMap.has(p.id)) {
-      playerAvatarMap.set(p.id, i % 8);
-    }
-  });
+  // Assign avatars using getPlayerAvatarIndex (no duplicates)
+  players.forEach(p => getPlayerAvatarIndex(p.id));
 
   // Update circle slots
   const slots = document.querySelectorAll('.circle-slot');
@@ -218,7 +226,8 @@ function updateLobby(players, spectatorCount) {
     const player = players[i];
 
     if (player) {
-      const avatar = AVATARS[i % 8];
+      const avatarIdx = getPlayerAvatarIndex(player.id);
+      const avatar = AVATARS[avatarIdx];
       charEl.innerHTML = `<img src="${avatar.img}" alt="${avatar.name}" class="avatar-img">`;
       charEl.style.display = 'block';
       labelEl.style.display = 'none';
@@ -290,8 +299,9 @@ function buildAvatarFloor(players, totalTime) {
   const floor = document.getElementById('avatar-floor');
   floor.innerHTML = '';
 
-  players.forEach((p, i) => {
-    const avatar = AVATARS[i % 8];
+  players.forEach((p) => {
+    const avatarIdx = getPlayerAvatarIndex(p.id);
+    const avatar = AVATARS[avatarIdx];
     const el = document.createElement('div');
     el.className = 'floor-avatar breathing-slow';
     el.id = `floor-avatar-${p.id}`;
@@ -355,10 +365,7 @@ socket.on('matchup-show', (data) => {
 
 function showMatchupScreen(data) {
   showScreen('matchup');
-  document.getElementById('matchup-num').textContent = data.index + 1;
-  document.getElementById('matchup-total').textContent = data.total;
   document.getElementById('matchup-prompt').textContent = data.promptText;
-  document.getElementById('matchup-multiplier').textContent = `x${data.multiplier}`;
   document.getElementById('matchup-a1-text').textContent = data.answer1;
   document.getElementById('matchup-a2-text').textContent = data.answer2;
   document.getElementById('matchup-vote-count').textContent = '0';

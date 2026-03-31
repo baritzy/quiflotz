@@ -6,7 +6,11 @@ const { GameEngine } = require('./game-engine');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, {
+  cors: { origin: '*' },
+  pingTimeout: 60000,      // 60s before considering disconnected (phone in background)
+  pingInterval: 25000       // Check every 25s
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -251,7 +255,13 @@ io.on('connection', (socket) => {
     } else {
       const player = room.players.get(socket.id);
       if (player) {
-        player.connected = false;
+        if (room.state === 'lobby') {
+          // In lobby: remove player entirely so slot opens up
+          room.players.delete(socket.id);
+        } else {
+          // During game: mark disconnected but keep in game
+          player.connected = false;
+        }
         io.to(room.hostId).emit('player-left', {
           playerName: player.name,
           players: engine.getPlayerList(room),
@@ -510,11 +520,20 @@ function showFinalResult(room) {
 
 function showScoreboard(room) {
   room.phase = 'scoreboard';
-  io.to(room.code).emit('scoreboard', {
+
+  // Scoreboard only on host — players see "look at the screen"
+  io.to(room.hostId).emit('scoreboard', {
     scores: engine.getScoreboard(room),
     subRound: room.subRound,
     mainRound: room.mainRound,
     nextSubRound: room.subRound < 3 ? room.subRound + 1 : null
+  });
+
+  // Tell players to look at host screen
+  room.players.forEach((player, id) => {
+    if (player.connected && id !== room.hostId) {
+      io.to(id).emit('show-splash', { text: 'הסתכלו על המסך הראשי!' });
+    }
   });
 
   // Auto-advance after 7 seconds
@@ -539,10 +558,18 @@ function showRoundComplete(room) {
   const scores = engine.getScoreboard(room);
   const winner = scores[0] || null;
 
-  io.to(room.code).emit('round-complete', {
+  // Only host sees round-complete scoreboard + winner
+  io.to(room.hostId).emit('round-complete', {
     mainRound: room.mainRound,
     scores,
     winner
+  });
+
+  // Players see "look at the screen"
+  room.players.forEach((player, id) => {
+    if (player.connected && id !== room.hostId) {
+      io.to(id).emit('show-splash', { text: 'הסתכלו על המסך הראשי!' });
+    }
   });
 
   // Winner display (5s) → credits roll (auto) → "משחק חדש" button stays

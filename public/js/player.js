@@ -1,6 +1,24 @@
-const socket = io();
+const socket = io({
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  timeout: 60000
+});
 let myName = '';
 let isSpectator = false;
+let myRoomCode = '';
+
+// Auto-rejoin room after reconnection
+socket.on('connect', () => {
+  if (myName && myRoomCode) {
+    socket.emit('join-room', { roomCode: myRoomCode, playerName: myName }, (res) => {
+      if (res.success) {
+        console.log('Rejoined room after reconnect');
+      }
+    });
+  }
+});
 
 // --- Screen management ---
 const screens = {};
@@ -30,6 +48,7 @@ function joinRoom() {
   socket.emit('join-room', { roomCode: code, playerName: name }, (res) => {
     if (res.success) {
       isSpectator = res.isSpectator;
+      myRoomCode = res.roomCode;
       document.getElementById('display-name').textContent = name;
       document.getElementById('waiting-role').textContent = isSpectator ? '👀 צופה — תוכל להצביע!' : '🎮 שחקן';
       showScreen('waiting');

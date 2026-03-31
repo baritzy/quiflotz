@@ -1622,9 +1622,7 @@ body {
    SCOREBOARD
    ============================================ */
 
-#screen-scoreboard {
-  background: url('/assets/img/bg-scoreboard.png') center/cover no-repeat;
-}
+/* scoreboard uses normal game background, no special image */
 
 .scoreboard-title {
   font-family: var(--font-display);
@@ -2190,7 +2188,7 @@ body {
 
 .writing-round-info {
   position: absolute;
-  top: 20px;
+  top: 80px;
   right: 20px;
   display: flex;
   align-items: center;
@@ -2382,13 +2380,13 @@ body {
 }
 
 .voter-avatar-icon-lg {
-  width: 50px;
-  height: 50px;
+  width: 65px;
+  height: 65px;
 }
 
 .voter-char-img {
-  width: 50px;
-  height: 50px;
+  width: 65px;
+  height: 65px;
   object-fit: contain;
   animation: voterIdle 2s ease-in-out infinite;
   animation-delay: inherit;
@@ -2402,11 +2400,11 @@ body {
 
 .voter-avatar-name-lg {
   font-family: var(--font-display);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--cream);
   text-align: center;
-  max-width: 70px;
+  max-width: 90px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2549,13 +2547,13 @@ body {
 .persistent-bar {
   position: fixed;
   top: 15px;
-  left: 15px;
+  right: 15px;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: 8px;
   z-index: 200;
-  transform: rotate(-5deg);
+  transform: rotate(5deg);
 }
 
 .persistent-room-code {

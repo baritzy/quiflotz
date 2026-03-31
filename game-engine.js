@@ -103,11 +103,16 @@ class GameEngine {
    */
   allAnswersSubmitted(room) {
     if (room.subRound <= 2) {
-      return room.matchups.every(m =>
-        m.player1.answer !== null && m.player2.answer !== null
-      );
+      // Only check connected players' answers
+      return room.matchups.every(m => {
+        const p1 = room.players.get(m.player1.id);
+        const p2 = room.players.get(m.player2.id);
+        const p1Done = m.player1.answer !== null || !p1 || !p1.connected;
+        const p2Done = m.player2.answer !== null || !p2 || !p2.connected;
+        return p1Done && p2Done;
+      });
     } else {
-      // Sub-round 3
+      // Sub-round 3 — only connected players need to answer
       const activePlayers = this.getActivePlayers(room);
       return activePlayers.every(p => room.finalAnswers.has(p.id));
     }
