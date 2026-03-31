@@ -519,13 +519,11 @@ function showFinalResult(room) {
   });
 
   // Auto-advance: final reveal takes ~5s per answer + extra time
+  // After round 3 final results → go directly to round-complete (winner), skip double scoreboard
   const revealCount = results.filter(r => r.points > 0).length || 1;
   const totalRevealTime = revealCount * 5500 + 3000;
   room.timer = setTimeout(() => {
-    const scoreType = 'scoreboard-3';
-    showSplashThenDo(room, 'בואו נראה את התוצאות הסופיות', scoreType, 5000, () => {
-      showScoreboard(room);
-    });
+    showRoundComplete(room);
   }, totalRevealTime);
 }
 

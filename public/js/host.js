@@ -38,6 +38,7 @@ const MUSIC = {
   round1: new Audio('/assets/Quiflotz-round-1.mp3'),
   round2: new Audio('/assets/Quiflotz-round-2.mp3'),
   round3: new Audio('/assets/Quiflotz-round-3.mp3'),
+  scores: new Audio('/assets/Quiflotz-scores.mp3'),
   credits: new Audio('/assets/Quiflotz-End-Round-Credits.mp3'),
 };
 Object.values(MUSIC).forEach(a => { a.loop = true; a.volume = 0.3; a.preload = 'auto'; });
@@ -355,6 +356,7 @@ socket.on('sub-round-start', ({ subRound, multiplier, matchupCount, writeTime, p
   document.getElementById('answer-progress').textContent = `0/${matchupCount * 2}`;
   document.getElementById('writing-status-text').textContent = 'השחקנים כותבים תשובות...';
   document.getElementById('writing-prompt-area').style.display = 'none';
+  playMusic(getRoundMusic()); // Start round music at writing phase
   startCircleTimer('write-timer', writeTime);
   buildAvatarFloor(writingPlayers);
 });
@@ -367,9 +369,11 @@ socket.on('final-round-start', ({ prompt, writeTime, players }) => {
   document.getElementById('write-sub').textContent = '3';
   document.getElementById('write-multiplier').textContent = 'x3';
   document.getElementById('answer-progress').textContent = `0/${(players || []).length}`;
-  document.getElementById('writing-status-text').textContent = 'סיבוב אחרון!';
+  document.getElementById('writing-status-text').textContent = '';
+  document.getElementById('answer-progress').parentElement.style.display = 'none'; // Hide counter when big prompt shown
   document.getElementById('writing-prompt-area').style.display = 'block';
   document.getElementById('writing-prompt-text').textContent = prompt.text;
+  playMusic(MUSIC.round3); // Start round 3 music at writing phase
   startCircleTimer('write-timer', writeTime);
   buildAvatarFloor(writingPlayers);
 });
@@ -410,8 +414,13 @@ socket.on('show-splash', ({ text, type, duration }) => {
   document.getElementById('splash-text-content').textContent = text;
   showScreen('splash-text');
 
-  // Splash screens = stop music, play narrator only
-  stopMusic();
+  // Round intro splashes and scoreboard splashes = stop music, narrator only
+  // Mid-round splashes (no type) = just visual pause, keep music
+  const stopTypes = ['pre-game', 'round-1-start', 'round-2-start', 'round-3-start', 'round-4-start',
+                     'scoreboard-1', 'scoreboard-2', 'scoreboard-3'];
+  if (type && stopTypes.includes(type)) {
+    stopMusic();
+  }
 
   if (type === 'pre-game') {
     playNarrator(NARRATOR.letsStart);
@@ -453,7 +462,8 @@ socket.on('matchup-show', (data) => {
   document.getElementById('matchup-vote-count').textContent = '0';
   document.getElementById('matchup-a1').className = 'matchup-answer left pop-in';
   document.getElementById('matchup-a2').className = 'matchup-answer right pop-in';
-  playMusic(getRoundMusic());
+  // Resume round music if not already playing (in case it was stopped)
+  if (!currentMusic || currentMusic.paused) playMusic(getRoundMusic());
   if (!data.autoResolve && data.voteTime > 0) startCircleTimer('matchup-timer', data.voteTime);
 });
 
@@ -493,13 +503,23 @@ socket.on('matchup-result', ({ result, hasQuiflotz }) => {
   left.classList.toggle('quiflotz-glow', result.player1.quiflotz);
   right.classList.toggle('quiflotz-glow', result.player2.quiflotz);
 
-  // Play narrator for no-show
-  if ((isDQ1 || isDQ2) && currentSubRound <= 2) {
-    playNarrator(NARRATOR.noShow);
-  }
-
   showVoterAvatars('result-voters1', result.player1.voters);
   showVoterAvatars('result-voters2', result.player2.voters);
+
+  // Narrator priority: no-show wins over quiflotz announcement
+  const hasNoShow = (isDQ1 || isDQ2) && currentSubRound <= 2;
+  if (hasNoShow) {
+    playNarrator(NARRATOR.noShow);
+  } else if (hasQuiflotz) {
+    playNarrator(NARRATOR.quiflotz);
+  }
+
+  // Quiflotz overlay (visual only, narrator handled above)
+  if (hasQuiflotz && !hasNoShow) {
+    const ov = document.getElementById('quiflotz-overlay');
+    ov.classList.remove('hidden');
+    setTimeout(() => ov.classList.add('hidden'), 3000);
+  }
 
   setTimeout(() => {
     const pct1El = document.getElementById('result-pct1');
@@ -519,13 +539,6 @@ socket.on('matchup-result', ({ result, hasQuiflotz }) => {
       document.getElementById('result-bar1').style.width = '100%';
     }
   }, 2000);
-
-  if (hasQuiflotz) {
-    playNarrator(NARRATOR.quiflotz);
-    const ov = document.getElementById('quiflotz-overlay');
-    ov.classList.remove('hidden');
-    setTimeout(() => ov.classList.add('hidden'), 3000);
-  }
 
   document.getElementById('btn-next-matchup').style.display = 'none';
 });
@@ -649,6 +662,7 @@ socket.on('scoreboard', ({ scores, subRound, nextSubRound }) => {
   document.getElementById('scoreboard-sub').textContent =
     nextSubRound ? `אחרי סיבוב ${subRound}/3` : 'תוצאות סופיות';
   renderScoreboard('scoreboard-list', scores);
+  playMusic(MUSIC.scores); // Play scores music
   document.getElementById('btn-next-sub').style.display = 'none';
 });
 
