@@ -488,9 +488,10 @@ function showMatchupResult(room) {
 
   io.to(room.code).emit('matchup-result', data);
 
-  // Popup reveal style: 1s initial + 2 answers × 5s each + 0.8s gap + buffer
-  const quiflotzTime = hasQuiflotz ? 3000 : 0;
-  const totalTime = 1000 + 5000 + 800 + 5000 + quiflotzTime + 2000;
+  // Side-by-side reveal: quiflotz first (if any) → zoom + voters + pct + score count
+  const quiflotzTime = hasQuiflotz ? 4000 : 0;
+  const revealTime = 500 + 4500; // zoom-in + voters + pct + score count + buffer
+  const totalTime = quiflotzTime + revealTime + 3000;
 
   // Auto-advance to next matchup after display
   room.timer = setTimeout(() => {

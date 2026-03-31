@@ -158,19 +158,29 @@
     </div>
   </div>
 
-  <!-- MATCHUP RESULT (popup reveal style) -->
+  <!-- MATCHUP RESULT (side-by-side with animations) -->
   <div id="screen-matchup-result" class="screen">
-    <div class="phase-container matchup-result-container">
+    <div class="phase-container">
       <div class="prompt-text-inline" id="result-prompt"></div>
-      <div class="matchup-answers-pair" id="matchup-answers-pair"></div>
-      <!-- Popup overlay for focused answer -->
-      <div class="matchup-popup-overlay hidden" id="matchup-popup-overlay">
-        <div class="final-popup-card" id="matchup-popup-card">
-          <div class="final-popup-answer" id="matchup-popup-answer"></div>
-          <div class="final-popup-voters hidden" id="matchup-popup-voters"></div>
-          <div class="final-popup-pct-circle hidden" id="matchup-popup-pct"></div>
-          <div class="final-popup-player" id="matchup-popup-player"></div>
-          <div class="final-popup-points" id="matchup-popup-points"></div>
+      <div class="matchup-result-arena" id="matchup-result-arena">
+        <div class="mr-side left" id="mr-left">
+          <div class="mr-voters" id="mr-voters1"></div>
+          <div class="mr-card" id="mr-card1">
+            <div class="mr-answer" id="mr-answer1"></div>
+          </div>
+          <div class="mr-pct-circle hidden" id="mr-pct1"></div>
+          <div class="mr-player" id="mr-player1"></div>
+          <div class="mr-points" id="mr-points1">+0</div>
+        </div>
+        <div class="mr-vs">VS</div>
+        <div class="mr-side right" id="mr-right">
+          <div class="mr-voters" id="mr-voters2"></div>
+          <div class="mr-card" id="mr-card2">
+            <div class="mr-answer" id="mr-answer2"></div>
+          </div>
+          <div class="mr-pct-circle hidden" id="mr-pct2"></div>
+          <div class="mr-player" id="mr-player2"></div>
+          <div class="mr-points" id="mr-points2">+0</div>
         </div>
       </div>
       <button class="btn btn-next" id="btn-next-matchup" style="display:none">הבא ➡️</button>
@@ -211,9 +221,8 @@
 
   <!-- ROUND COMPLETE (shows final scoreboard first, then winner) -->
   <div id="screen-round-complete" class="screen">
-    <div class="phase-container">
+    <div class="final-container">
       <h1 class="scoreboard-title">🏆 תוצאות סופיות</h1>
-      <div class="scoreboard-sub" id="round-complete-sub">אחרי כל הסיבובים</div>
       <div class="final-scoreboard" id="round-final-scores"></div>
     </div>
   </div>

@@ -508,11 +508,8 @@ socket.on('matchup-vote-progress', ({ count }) => {
 });
 
 // ============================================================
-// MATCHUP RESULT — Popup reveal style (same as round 3)
+// MATCHUP RESULT — Side-by-side with animated reveal
 // ============================================================
-let matchupRevealData = [];
-let matchupRevealIndex = 0;
-
 socket.on('matchup-result', ({ result, hasQuiflotz }) => {
   showScreen('matchup-result');
   document.getElementById('result-prompt').textContent = result.prompt.text;
@@ -520,104 +517,138 @@ socket.on('matchup-result', ({ result, hasQuiflotz }) => {
   const isDQ1 = result.player1.answer === '💨 אין תשובה' || result.player1.answer === '(no answer)';
   const isDQ2 = result.player2.answer === '💨 אין תשובה' || result.player2.answer === '(no answer)';
 
-  // Build reveal data: loser first, winner second
-  const totalVotes = (result.player1.percentage + result.player2.percentage) || 100;
-  const sides = [
-    { name: result.player1.name, answer: isDQ1 ? '💨 פסול!' : result.player1.answer, pct: result.player1.percentage, points: result.player1.points, voters: result.player1.voters, quiflotz: result.player1.quiflotz, isDQ: isDQ1 },
-    { name: result.player2.name, answer: isDQ2 ? '💨 פסול!' : result.player2.answer, pct: result.player2.percentage, points: result.player2.points, voters: result.player2.voters, quiflotz: result.player2.quiflotz, isDQ: isDQ2 }
-  ];
-  // Sort: loser first (less votes), winner last
-  sides.sort((a, b) => a.points - b.points);
-  matchupRevealData = sides;
-  matchupRevealIndex = 0;
+  // Set answers on cards
+  document.getElementById('mr-answer1').textContent = isDQ1 ? '💨 פסול!' : result.player1.answer;
+  document.getElementById('mr-answer2').textContent = isDQ2 ? '💨 פסול!' : result.player2.answer;
+  document.getElementById('mr-player1').textContent = result.player1.name;
+  document.getElementById('mr-player2').textContent = result.player2.name;
+  document.getElementById('mr-points1').textContent = '+0';
+  document.getElementById('mr-points2').textContent = '+0';
 
-  // Build the pair of answer cards
-  const pair = document.getElementById('matchup-answers-pair');
-  pair.innerHTML = sides.map((s, i) => `
-    <div class="matchup-pair-card ${s.isDQ ? 'dq' : ''}" id="matchup-pair-${i}">
-      <div class="matchup-pair-answer">${esc(s.answer)}</div>
-      <div class="matchup-pair-player">${esc(s.name)}</div>
-    </div>
-  `).join('');
+  // Reset state
+  const left = document.getElementById('mr-left');
+  const right = document.getElementById('mr-right');
+  left.className = 'mr-side left';
+  right.className = 'mr-side right';
+  if (isDQ1) left.classList.add('disqualified');
+  if (isDQ2) right.classList.add('disqualified');
+  document.getElementById('mr-voters1').innerHTML = '';
+  document.getElementById('mr-voters2').innerHTML = '';
+  document.getElementById('mr-pct1').classList.add('hidden');
+  document.getElementById('mr-pct2').classList.add('hidden');
+  document.getElementById('btn-next-matchup').style.display = 'none';
 
-  // Hide overlay
-  document.getElementById('matchup-popup-overlay').classList.add('hidden');
-
-  // Narrator priority
   const hasNoShow = (isDQ1 || isDQ2) && currentSubRound <= 2;
-  if (hasNoShow) {
-    playNarrator(NARRATOR.noShow);
-  } else if (hasQuiflotz) {
-    playNarrator(NARRATOR.quiflotz);
-  }
 
-  // Quiflotz overlay
+  // Quiflotz: show overlay + audio FIRST, then reveal results
   if (hasQuiflotz && !hasNoShow) {
+    // Play narrator + show overlay
+    playNarrator(NARRATOR.quiflotz);
     const ov = document.getElementById('quiflotz-overlay');
     ov.classList.remove('hidden');
-    setTimeout(() => ov.classList.add('hidden'), 3000);
+    setTimeout(() => {
+      ov.classList.add('hidden');
+      // After quiflotz animation ends → start the result reveal
+      startMatchupRevealAnimation(result, isDQ1, isDQ2);
+    }, 3500);
+  } else {
+    if (hasNoShow) playNarrator(NARRATOR.noShow);
+    // No quiflotz — start reveal directly
+    setTimeout(() => startMatchupRevealAnimation(result, isDQ1, isDQ2), 500);
   }
-
-  // Start popup reveal sequence after brief pause
-  setTimeout(revealNextMatchupAnswer, 1000);
 });
 
-function revealNextMatchupAnswer() {
-  if (matchupRevealIndex >= matchupRevealData.length) return;
+function startMatchupRevealAnimation(result, isDQ1, isDQ2) {
+  const left = document.getElementById('mr-left');
+  const right = document.getElementById('mr-right');
 
-  const r = matchupRevealData[matchupRevealIndex];
-  const isLast = matchupRevealIndex === matchupRevealData.length - 1;
+  // Mark winner/quiflotz
+  if (!isDQ1 && result.player1.points > result.player2.points) left.classList.add('winner');
+  if (!isDQ2 && result.player2.points > result.player1.points) right.classList.add('winner');
+  if (result.player1.quiflotz) left.classList.add('quiflotz-glow');
+  if (result.player2.quiflotz) right.classList.add('quiflotz-glow');
 
-  // Highlight grid card
-  const gridCard = document.getElementById(`matchup-pair-${matchupRevealIndex}`);
-  if (gridCard) gridCard.classList.add('revealing');
+  // Step 1: Zoom-in animation (5%)
+  left.classList.add('zoom-in');
+  right.classList.add('zoom-in');
 
-  // Show popup overlay
-  const overlay = document.getElementById('matchup-popup-overlay');
-  const card = document.getElementById('matchup-popup-card');
-  overlay.classList.remove('hidden');
-  card.className = 'final-popup-card pop-in' + (isLast ? ' winner-card' : '');
-
-  document.getElementById('matchup-popup-answer').textContent = r.answer;
-  document.getElementById('matchup-popup-player').textContent = r.name;
-  document.getElementById('matchup-popup-points').textContent = '+' + r.points;
-
-  const votersEl = document.getElementById('matchup-popup-voters');
-  const pctEl = document.getElementById('matchup-popup-pct');
-  votersEl.classList.add('hidden');
-  pctEl.classList.add('hidden');
-  votersEl.innerHTML = '';
-
-  // After 2s: show voters + percentage + animate points
+  // Step 2: After 0.5s — voter avatars pop in one by one (rapid)
   setTimeout(() => {
-    votersEl.innerHTML = buildVoterAvatarsHTML(r.voters);
-    votersEl.classList.remove('hidden');
-    pctEl.textContent = r.pct + '%';
-    pctEl.classList.remove('hidden');
-    pctEl.classList.add('pop-in');
+    popVotersIn('mr-voters1', result.player1.voters);
+    popVotersIn('mr-voters2', result.player2.voters);
+  }, 600);
 
-    // Animate points counting
-    const pointsEl = document.getElementById('matchup-popup-points');
-    if (r.points > 0) {
-      animateScoreCount(pointsEl, r.points, 700, '+');
-    } else {
-      pointsEl.textContent = '+0';
-    }
-  }, 2000);
-
-  // After 5s: close popup, next
+  // Step 3: After 2s — percentage circles appear
   setTimeout(() => {
-    overlay.classList.add('hidden');
-    if (gridCard) {
-      gridCard.classList.remove('revealing');
-      gridCard.classList.add('revealed');
-      gridCard.innerHTML += `<div class="final-grid-pct">${r.pct}%</div>`;
+    const pct1 = document.getElementById('mr-pct1');
+    const pct2 = document.getElementById('mr-pct2');
+    if (!isDQ1) {
+      pct1.textContent = result.player1.percentage + '%';
+      pct1.classList.remove('hidden');
+      pct1.classList.add('pop-in');
     }
-    matchupRevealIndex++;
-    if (matchupRevealIndex < matchupRevealData.length) {
-      setTimeout(revealNextMatchupAnswer, 800);
+    if (!isDQ2) {
+      pct2.textContent = result.player2.percentage + '%';
+      pct2.classList.remove('hidden');
+      pct2.classList.add('pop-in');
     }
-  }, 5000);
+  }, 2200);
+
+  // Step 4: After 2.8s — score counting animation
+  setTimeout(() => {
+    if (result.player1.points > 0) {
+      animateScoreCount(document.getElementById('mr-points1'), result.player1.points, 700, '+');
+    }
+    if (result.player2.points > 0) {
+      animateScoreCount(document.getElementById('mr-points2'), result.player2.points, 700, '+');
+    }
+  }, 2800);
+}
+
+function popVotersIn(containerId, voters) {
+  const el = document.getElementById(containerId);
+  if (!el || !voters || voters.length === 0) return;
+  const shownIds = new Set();
+  const voterElements = voters.map((voter) => {
+    const voterId = typeof voter === 'object' ? voter.id : null;
+    const voterName = typeof voter === 'object' ? voter.name : voter.replace(/ \(x\d+\)$/, '');
+    if (voterId && shownIds.has(voterId)) return null;
+    if (voterId) shownIds.add(voterId);
+    const avatar = AVATARS[voterId ? getPlayerAvatarIndex(voterId) : 0];
+    return { html: `<div class="voter-avatar voter-avatar-lg pop-voter">
+      <div class="voter-avatar-icon-lg"><img src="${avatar.img}" class="voter-char-img"></div>
+      <div class="voter-avatar-name-lg">${esc(voterName)}</div>
+    </div>`, name: voterName };
+  }).filter(Boolean);
+
+  // Pop them in one by one, rapidly (120ms apart)
+  voterElements.forEach((v, i) => {
+    setTimeout(() => {
+      el.insertAdjacentHTML('beforeend', v.html);
+    }, i * 120);
+  });
+}
+
+function popVotersInFinal(container, voters) {
+  if (!container || !voters || voters.length === 0) return;
+  const shownIds = new Set();
+  const voterElements = voters.map((voter) => {
+    const voterId = typeof voter === 'object' ? voter.id : null;
+    const voterName = typeof voter === 'object' ? voter.name : voter;
+    const count = typeof voter === 'object' ? voter.count : 1;
+    const countBadge = count > 1 ? `<span class="voter-count">x${count}</span>` : '';
+    if (voterId && shownIds.has(voterId)) return null;
+    if (voterId) shownIds.add(voterId);
+    const avatar = AVATARS[voterId ? getPlayerAvatarIndex(voterId) : 0];
+    return `<div class="voter-avatar voter-avatar-lg pop-voter">
+      <div class="voter-avatar-icon-lg"><img src="${avatar.img}" class="voter-char-img"></div>
+      <div class="voter-avatar-name-lg">${esc(voterName)}${countBadge}</div>
+    </div>`;
+  }).filter(Boolean);
+
+  voterElements.forEach((html, i) => {
+    setTimeout(() => container.insertAdjacentHTML('beforeend', html), i * 120);
+  });
 }
 
 function buildVoterAvatarsHTML(voters) {
@@ -669,8 +700,9 @@ socket.on('final-round-result', ({ prompt, results }) => {
   showScreen('final-result');
   document.getElementById('final-result-prompt').textContent = prompt.text;
 
-  // Sort: least votes first (we reveal from worst to best)
-  finalRevealResults = [...results].sort((a, b) => a.votes - b.votes);
+  // Sort: least votes first, filter out 0-vote answers for popup reveal
+  const allSorted = [...results].sort((a, b) => a.votes - b.votes);
+  finalRevealResults = allSorted.filter(r => r.votes > 0);
   finalTotalVotes = results.reduce((sum, r) => sum + r.votes, 0);
   finalRevealIndex = 0;
 
@@ -726,34 +758,26 @@ function revealNextFinalAnswer() {
   pctEl.classList.add('hidden');
   votersEl.innerHTML = '';
 
-  // After 2s: show voters + percentage + animate points
+  // After 2s: pop voters in one by one, then percentage + points
   setTimeout(() => {
-    // Voter avatars
-    votersEl.innerHTML = r.voters.map((voter, i) => {
-      const voterId = typeof voter === 'object' ? voter.id : null;
-      const voterName = typeof voter === 'object' ? voter.name : voter;
-      const count = typeof voter === 'object' ? voter.count : 1;
-      const countBadge = count > 1 ? `<span class="voter-count">x${count}</span>` : '';
-      const avatar = AVATARS[voterId ? getPlayerAvatarIndex(voterId) : 0];
-      return `<div class="voter-avatar voter-avatar-lg" style="animation-delay: ${i * 0.15}s">
-        <div class="voter-avatar-icon-lg"><img src="${avatar.img}" class="voter-char-img"></div>
-        <div class="voter-avatar-name-lg">${esc(voterName)}${countBadge}</div>
-      </div>`;
-    }).join('');
+    // Pop voters in rapidly using the shared function
     votersEl.classList.remove('hidden');
+    popVotersInFinal(votersEl, r.voters);
 
-    // Percentage circle
-    pctEl.textContent = pct + '%';
-    pctEl.classList.remove('hidden');
-    pctEl.classList.add('pop-in');
+    // After voters pop in → percentage + points
+    const voterDelay = Math.max(r.voters.length * 120, 300) + 400;
+    setTimeout(() => {
+      pctEl.textContent = pct + '%';
+      pctEl.classList.remove('hidden');
+      pctEl.classList.add('pop-in');
 
-    // Animate points counting
-    const pointsEl = document.getElementById('final-popup-points');
-    if (r.points > 0) {
-      animateScoreCount(pointsEl, r.points, 700, '+');
-    } else {
-      pointsEl.textContent = '+0';
-    }
+      const pointsEl = document.getElementById('final-popup-points');
+      if (r.points > 0) {
+        animateScoreCount(pointsEl, r.points, 700, '+');
+      } else {
+        pointsEl.textContent = '+0';
+      }
+    }, voterDelay);
   }, 2000);
 
   // After 5s total (2s wait + 3s display): close popup, move to next
