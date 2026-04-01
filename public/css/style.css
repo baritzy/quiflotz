@@ -2493,6 +2493,44 @@ body {
 }
 
 /* ============================================
+   FINAL ROUND VOTING — Grid of answers (host)
+   ============================================ */
+
+.final-voting-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  padding: 15px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.fv-card {
+  background: linear-gradient(145deg, var(--dark-purple), var(--purple));
+  border: 3px solid var(--cyan);
+  border-radius: var(--radius);
+  padding: 22px 20px;
+  min-width: 160px;
+  max-width: 220px;
+  flex: 1 1 160px;
+  text-align: center;
+  animation: popIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) both;
+}
+
+.fv-answer {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  direction: ltr;
+  color: var(--cream);
+}
+
+.final-voting-status {
+  margin-top: 15px;
+}
+
+/* ============================================
    FINAL ROUND RESULTS — Grid + Popup Reveal
    ============================================ */
 
@@ -2534,6 +2572,11 @@ body {
 .final-grid-card.revealed {
   opacity: 1;
   border-color: var(--mint);
+}
+
+.final-grid-card.no-votes {
+  opacity: 0.4;
+  border-color: rgba(255,255,255,0.1);
 }
 
 .final-grid-answer {

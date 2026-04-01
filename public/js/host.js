@@ -309,6 +309,11 @@ function showScreen(name) {
   if (screens[name]) screens[name].classList.add('active');
   const bar = document.getElementById('persistent-bar');
   if (bar) bar.style.display = (name === 'splash' || name === 'lobby') ? 'none' : 'flex';
+  // Clear avatar floor when leaving writing screen
+  if (name !== 'writing') {
+    const floor = document.getElementById('avatar-floor');
+    if (floor) floor.innerHTML = '';
+  }
 }
 
 // ============================================================
@@ -670,23 +675,28 @@ function buildVoterAvatarsHTML(voters) {
 document.getElementById('btn-next-matchup').addEventListener('click', () => socket.emit('next-matchup'));
 
 // ============================================================
-// FINAL ROUND VOTING
+// FINAL ROUND VOTING — Show all answers as grid on host
 // ============================================================
 socket.on('final-voting-start', ({ prompt, answers, voteTime }) => {
-  showScreen('writing');
-  document.getElementById('write-sub').textContent = '3';
-  document.getElementById('write-multiplier').textContent = 'x3';
-  document.getElementById('writing-status-text').textContent = 'השחקנים מצביעים...';
-  document.getElementById('writing-prompt-area').style.display = 'block';
-  document.getElementById('writing-prompt-text').textContent = prompt.text;
-  document.getElementById('answer-progress').textContent = '';
+  showScreen('final-voting');
+  document.getElementById('final-voting-prompt').textContent = prompt.text;
+  document.getElementById('final-voting-count').textContent = '0';
+
+  // Build grid of answer cards (like Quiplash)
+  const grid = document.getElementById('final-voting-grid');
+  grid.innerHTML = answers.map((a, i) => `
+    <div class="fv-card" style="animation-delay: ${i * 0.1}s">
+      <div class="fv-answer">${esc(a.text)}</div>
+    </div>
+  `).join('');
+
   playMusic(MUSIC.round3);
-  startCircleTimer('write-timer', voteTime);
+  startCircleTimer('final-vote-timer', voteTime);
 });
 
 socket.on('final-vote-progress', ({ count }) => {
-  const el = document.getElementById('answer-progress');
-  if (el) el.textContent = `${count} הצביעו`;
+  const el = document.getElementById('final-voting-count');
+  if (el) el.textContent = count;
 });
 
 // ============================================================
@@ -695,39 +705,58 @@ socket.on('final-vote-progress', ({ count }) => {
 let finalRevealResults = [];
 let finalRevealIndex = 0;
 let finalTotalVotes = 0;
+let finalRevealGridMap = [];
 
 socket.on('final-round-result', ({ prompt, results }) => {
-  showScreen('final-result');
-  document.getElementById('final-result-prompt').textContent = prompt.text;
+  // Show "בואו נראה מה הצבעתם" splash first
+  document.getElementById('splash-text-content').textContent = 'בואו נראה מה הצבעתם!';
+  showScreen('splash-text');
 
-  // Sort: least votes first, filter out 0-vote answers for popup reveal
-  const allSorted = [...results].sort((a, b) => a.votes - b.votes);
-  finalRevealResults = allSorted.filter(r => r.votes > 0);
-  finalTotalVotes = results.reduce((sum, r) => sum + r.votes, 0);
-  finalRevealIndex = 0;
+  // After 3s splash → show the results screen with reveal
+  setTimeout(() => {
+    showScreen('final-result');
+    document.getElementById('final-result-prompt').textContent = prompt.text;
 
-  // Build the grid of all answers (hidden details initially)
-  const grid = document.getElementById('final-answers-grid');
-  grid.innerHTML = finalRevealResults.map((r, i) => {
-    const avatar = AVATARS[getPlayerAvatarIndex(r.playerId)];
-    return `<div class="final-grid-card" id="final-grid-${i}" data-index="${i}">
-      <div class="final-grid-answer">${esc(r.text)}</div>
-      <div class="final-grid-player">
-        <img src="${avatar.img}" class="final-grid-avatar-img"> ${esc(r.playerName)}
-      </div>
-    </div>`;
-  }).join('');
+    // Sort: least votes first, filter out 0-vote answers for popup reveal
+    const allSorted = [...results].sort((a, b) => a.votes - b.votes);
+    finalRevealResults = allSorted.filter(r => r.votes > 0);
+    finalTotalVotes = results.reduce((sum, r) => sum + r.votes, 0);
+    finalRevealIndex = 0;
 
-  // Hide overlay
-  document.getElementById('final-popup-overlay').classList.add('hidden');
+    // Build the grid of ALL answers (including 0-vote ones)
+    const grid = document.getElementById('final-answers-grid');
+    grid.innerHTML = allSorted.map((r, i) => {
+      const avatar = AVATARS[getPlayerAvatarIndex(r.playerId)];
+      const hasVotes = r.votes > 0;
+      return `<div class="final-grid-card ${hasVotes ? '' : 'no-votes'}" id="final-grid-${i}" data-index="${i}">
+        <div class="final-grid-answer">${esc(r.text)}</div>
+        <div class="final-grid-player">
+          <img src="${avatar.img}" class="final-grid-avatar-img"> ${esc(r.playerName)}
+        </div>
+      </div>`;
+    }).join('');
 
-  if (finalRevealResults.length === 0) {
-    grid.innerHTML = '<div class="waiting-text">אף אחד לא הצביע...</div>';
-    return;
-  }
+    // Hide overlay
+    document.getElementById('final-popup-overlay').classList.add('hidden');
 
-  // Start reveal sequence after a brief pause
-  setTimeout(revealNextFinalAnswer, 1500);
+    if (finalRevealResults.length === 0) {
+      grid.innerHTML = '<div class="waiting-text">אף אחד לא הצביע...</div>';
+      return;
+    }
+
+    // Map reveal index to grid card index (only voted answers get popup)
+    finalRevealGridMap = [];
+    let revealIdx = 0;
+    allSorted.forEach((r, gridIdx) => {
+      if (r.votes > 0) {
+        finalRevealGridMap[revealIdx] = gridIdx;
+        revealIdx++;
+      }
+    });
+
+    // Start reveal sequence after a brief pause
+    setTimeout(revealNextFinalAnswer, 1500);
+  }, 3000);
 });
 
 function revealNextFinalAnswer() {
@@ -737,8 +766,9 @@ function revealNextFinalAnswer() {
   const isLast = finalRevealIndex === finalRevealResults.length - 1;
   const pct = finalTotalVotes > 0 ? Math.round((r.votes / finalTotalVotes) * 100) : 0;
 
-  // Highlight the grid card
-  const gridCard = document.getElementById(`final-grid-${finalRevealIndex}`);
+  // Highlight the correct grid card (mapped from reveal index)
+  const gridIdx = finalRevealGridMap ? finalRevealGridMap[finalRevealIndex] : finalRevealIndex;
+  const gridCard = document.getElementById(`final-grid-${gridIdx}`);
   if (gridCard) gridCard.classList.add('revealing');
 
   // Show popup overlay

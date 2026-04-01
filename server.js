@@ -545,10 +545,10 @@ function showFinalResult(room) {
     scores: engine.getScoreboard(room)
   });
 
-  // Auto-advance: 1.5s initial + ~6.3s per answer (5s popup + 0.8s gap + buffer)
+  // Auto-advance: 3s splash + 1.5s initial + ~6.3s per voted answer + buffer
   // After round 3 final results → go directly to round-complete (winner), skip double scoreboard
-  const revealCount = results.length || 1;
-  const totalRevealTime = 1500 + revealCount * 6300 + 3000;
+  const votedCount = results.filter(r => r.votes > 0).length || 1;
+  const totalRevealTime = 3000 + 1500 + votedCount * 6300 + 3000;
   room.timer = setTimeout(() => {
     showRoundComplete(room);
   }, totalRevealTime);
