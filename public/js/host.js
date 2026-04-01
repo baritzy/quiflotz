@@ -923,12 +923,10 @@ function renderScoreBlock(s, rankIndex, delay) {
   const isTopRow = rankIndex < 4;
   const blockSize = isTopRow ? 'large' : 'small';
   return `<div class="score-block score-block-${blockSize}" style="animation-delay: ${delay}s">
-    <div class="score-block-rank">${rank}</div>
+    <div class="score-block-rank-bg">${rank}</div>
     <div class="score-block-character"><img src="${avatar.img}" alt="" class="score-block-avatar breathing"></div>
-    <div class="score-block-info">
-      <div class="score-block-name">${esc(s.name)}</div>
-      <div class="score-block-points" data-score="${s.score}">0</div>
-    </div>
+    <div class="score-block-name">${esc(s.name)}</div>
+    <div class="score-block-points" data-score="${s.score}">0</div>
   </div>`;
 }
 
