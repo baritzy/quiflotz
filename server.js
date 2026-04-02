@@ -563,11 +563,11 @@ function showFinalResult(room) {
   });
 
   // Auto-advance: 3s splash + 1.5s initial + ~6.3s per voted answer + buffer
-  // After round 3 final results → go directly to round-complete (winner), skip double scoreboard
+  // After round 3 final results → show scoreboard with Points Table 3 narrator, then round-complete
   const votedCount = results.filter(r => r.votes > 0).length || 1;
   const totalRevealTime = 3000 + 1500 + votedCount * 6300 + 3000;
   room.timer = setTimeout(() => {
-    showRoundComplete(room);
+    showSplashThenDo(room, 'בואו נראה את התוצאות עד כה', 'scoreboard-3', 5000, () => showScoreboard(room));
   }, totalRevealTime);
 }
 
