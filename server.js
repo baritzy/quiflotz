@@ -238,6 +238,18 @@ io.on('connection', (socket) => {
     startSubRound(room, 1);
   });
 
+  // Host signals prompt narration finished — advance to voting
+  socket.on('prompt-reveal-done', () => {
+    const room = rooms.get(socket.roomCode);
+    if (!room || socket.id !== room.hostId) return;
+    if (room.promptRevealCallback) {
+      clearTimeout(room.timer);
+      const cb = room.promptRevealCallback;
+      room.promptRevealCallback = null;
+      cb();
+    }
+  });
+
   // Host signals narrator finished — advance past splash
   socket.on('splash-done', () => {
     const room = rooms.get(socket.roomCode);
@@ -406,17 +418,21 @@ function startNextMatchup(room) {
   io.to(room.code).emit('matchup-pause', { index: matchup.index, total: room.matchups.length });
 
   room.timer = setTimeout(() => {
-    // Show prompt big for 7 seconds
+    // Show prompt big — audio determines duration, host signals when done
     room.phase = 'matchup-prompt-reveal';
     io.to(room.code).emit('matchup-prompt-reveal', {
       promptText: matchup.prompt.text,
+      promptAudio: matchup.prompt.audio || null,
       index: matchup.index,
       total: room.matchups.length
     });
 
+    // Wait for host signal (prompt-reveal-done) or fallback 10s
+    room.promptRevealCallback = () => startMatchupVoting(room);
     room.timer = setTimeout(() => {
+      room.promptRevealCallback = null;
       startMatchupVoting(room);
-    }, 7000);
+    }, 10000);
   }, 3000);
 }
 

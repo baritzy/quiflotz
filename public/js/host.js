@@ -63,6 +63,8 @@ const SFX = {
   countdown5: new Audio('/assets/Narrator-5-seconds.mp3'),
   timeIsUp: new Audio('/assets/Narrator-time-is-up.mp3'),
   scoreCount: new Audio('/assets/SFX-score-count.mp3'),
+  swooshIn: new Audio('/assets/SFX-swoosh-in.mp3'),
+  swooshOut: new Audio('/assets/SFX-swoosh-out.mp3'),
 };
 
 const ALL_AUDIO = [
@@ -151,6 +153,41 @@ function playSFX(audio) {
     const done = () => { if (!resolved) { resolved = true; resolve(); } };
     audio.onended = done;
     setTimeout(done, 15000);
+  });
+}
+
+function playSwooshIn() {
+  SFX.swooshIn.currentTime = 0;
+  SFX.swooshIn.volume = userVolume * 0.25;
+  if (!isMuted && audioUnlocked) SFX.swooshIn.play().catch(() => {});
+}
+
+function playSwooshOut() {
+  SFX.swooshOut.currentTime = 0;
+  SFX.swooshOut.volume = userVolume * 0.25;
+  if (!isMuted && audioUnlocked) SFX.swooshOut.play().catch(() => {});
+}
+
+/**
+ * Play prompt narration audio. Returns a promise that resolves when done.
+ */
+function playPromptAudio(audioPath) {
+  if (!audioPath) return Promise.resolve();
+  const audio = new Audio(audioPath);
+  audio.volume = userVolume;
+  // Duck music during prompt narration
+  if (currentMusic && !currentMusic.paused) duckMusic();
+  if (!isMuted && audioUnlocked) audio.play().catch(() => {});
+  return new Promise(resolve => {
+    let resolved = false;
+    const done = () => {
+      if (resolved) return;
+      resolved = true;
+      unduckMusic();
+      resolve();
+    };
+    audio.onended = done;
+    setTimeout(done, 15000); // fallback
   });
 }
 
@@ -304,7 +341,9 @@ function renderCircle(remaining, total, isWritePhase) {
 const screens = {};
 document.querySelectorAll('.screen').forEach(s => { screens[s.id.replace('screen-', '')] = s; });
 
+let lastScreen = '';
 function showScreen(name) {
+  const prev = lastScreen;
   Object.values(screens).forEach(s => s.classList.remove('active'));
   if (screens[name]) screens[name].classList.add('active');
   const bar = document.getElementById('persistent-bar');
@@ -314,6 +353,12 @@ function showScreen(name) {
     const floor = document.getElementById('avatar-floor');
     if (floor) floor.innerHTML = '';
   }
+  // Swoosh on significant screen transitions (not splash-to-splash)
+  const swooshScreens = ['matchup', 'matchup-result', 'prompt-reveal', 'scoreboard', 'round-complete', 'final-result', 'final-voting', 'winner'];
+  if (prev !== name && swooshScreens.includes(name) && prev !== '' && prev !== 'splash') {
+    playSwooshIn();
+  }
+  lastScreen = name;
 }
 
 // ============================================================
@@ -482,9 +527,18 @@ socket.on('show-splash', ({ text, type, duration, waitForNarrator }) => {
   }
 });
 
-socket.on('matchup-prompt-reveal', ({ promptText }) => {
+socket.on('matchup-prompt-reveal', ({ promptText, promptAudio }) => {
   document.getElementById('reveal-prompt-text').textContent = promptText;
   showScreen('prompt-reveal');
+  playSwooshIn();
+
+  // Play prompt narration — when done, signal server
+  playPromptAudio(promptAudio).then(() => {
+    setTimeout(() => {
+      playSwooshOut();
+      socket.emit('prompt-reveal-done');
+    }, 800);
+  });
 });
 
 socket.on('matchup-pause', () => {
@@ -691,6 +745,8 @@ socket.on('final-voting-start', ({ prompt, answers, voteTime }) => {
   `).join('');
 
   playMusic(MUSIC.round3);
+  // Play prompt narration once
+  if (prompt.audio) playPromptAudio(prompt.audio);
   startCircleTimer('final-vote-timer', voteTime);
 });
 
