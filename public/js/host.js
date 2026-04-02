@@ -66,12 +66,23 @@ const SFX = {
   swooshIn: new Audio('/assets/SFX-swoosh-in.mp3'),
   swooshOut: new Audio('/assets/SFX-swoosh-out.mp3'),
   pop: new Audio('/assets/SFX-pop.mp3'),
+  percentage: new Audio('/assets/SFX-percentage.mp3'),
+  charConnect: [
+    new Audio('/assets/SFX-char-connect-0.mp3'),
+    new Audio('/assets/SFX-char-connect-1.mp3'),
+    new Audio('/assets/SFX-char-connect-2.mp3'),
+    new Audio('/assets/SFX-char-connect-3.mp3'),
+    new Audio('/assets/SFX-char-connect-4.mp3'),
+    new Audio('/assets/SFX-char-connect-5.mp3'),
+    new Audio('/assets/SFX-char-connect-6.mp3'),
+    new Audio('/assets/SFX-char-connect-7.mp3'),
+  ],
 };
 
 const ALL_AUDIO = [
   ...Object.values(MUSIC),
   ...Object.values(NARRATOR).flat(),
-  ...Object.values(SFX)
+  ...Object.values(SFX).flat()
 ];
 ALL_AUDIO.forEach(a => { a.preload = 'auto'; if (!a.volume) a.volume = 0.3; });
 
@@ -171,7 +182,7 @@ function playSwooshOut() {
 
 function playPopSFX() {
   SFX.pop.currentTime = 0;
-  SFX.pop.volume = userVolume * 0.3;
+  SFX.pop.volume = userVolume * 0.45;
   if (!isMuted && audioUnlocked) SFX.pop.play().catch(() => {});
 }
 
@@ -389,11 +400,28 @@ document.getElementById('btn-persistent-restart').addEventListener('click', () =
 // ============================================================
 // LOBBY
 // ============================================================
-socket.on('player-joined', ({ players, spectatorCount }) => updateLobby(players, spectatorCount));
+let previousPlayerIds = new Set();
+
+socket.on('player-joined', ({ players, spectatorCount }) => {
+  // Detect new player and play their character connection sound
+  players.forEach(p => {
+    if (!previousPlayerIds.has(p.id)) {
+      const avatarIdx = getPlayerAvatarIndex(p.id);
+      const connectSound = SFX.charConnect[avatarIdx];
+      if (connectSound && audioUnlocked && !isMuted) {
+        connectSound.currentTime = 0;
+        connectSound.volume = userVolume * 0.6;
+        connectSound.play().catch(() => {});
+      }
+    }
+  });
+  updateLobby(players, spectatorCount);
+});
 socket.on('player-left', ({ players, spectatorCount }) => updateLobby(players, spectatorCount));
 
 function updateLobby(players, spectatorCount) {
   document.getElementById('player-count').textContent = players.length;
+  previousPlayerIds = new Set(players.map(p => p.id));
   players.forEach(p => getPlayerAvatarIndex(p.id));
   const slots = document.querySelectorAll('.circle-slot');
   slots.forEach((slot, i) => {
@@ -522,6 +550,8 @@ socket.on('show-splash', ({ text, type, duration, waitForNarrator }) => {
   } else if (type === 'scoreboard-3') {
     narratorPromise = playNarrator(NARRATOR.pointsTable3);
   } else if (type === 'time-is-up') {
+    playSFX(SFX.timeIsUp);
+  } else if (type === 'lets-see-votes') {
     playSFX(SFX.timeIsUp);
   }
 
@@ -668,6 +698,12 @@ function startMatchupRevealAnimation(result, isDQ1, isDQ2) {
       pct2.classList.remove('hidden');
       pct2.classList.add('pop-in');
     }
+    // Play percentage stamp sound
+    if (!isDQ1 || !isDQ2) {
+      SFX.percentage.currentTime = 0;
+      SFX.percentage.volume = userVolume * 0.3;
+      if (!isMuted && audioUnlocked) SFX.percentage.play().catch(() => {});
+    }
   }, 2200);
 
   // Step 4: After 2.8s — score counting animation
@@ -684,6 +720,7 @@ function startMatchupRevealAnimation(result, isDQ1, isDQ2) {
 function popVotersIn(containerId, voters) {
   const el = document.getElementById(containerId);
   if (!el || !voters || voters.length === 0) return;
+  el.innerHTML = ''; // Clear any previous voters to prevent duplicates
   const shownIds = new Set();
   const voterElements = voters.map((voter) => {
     const voterId = typeof voter === 'object' ? voter.id : null;
@@ -788,6 +825,7 @@ socket.on('final-round-result', ({ prompt, results }) => {
   // Show "בואו נראה מה הצבעתם" splash first
   document.getElementById('splash-text-content').textContent = 'בואו נראה מה הצבעתם!';
   showScreen('splash-text');
+  playSFX(SFX.timeIsUp);
 
   // After 3s splash → show the results screen with reveal
   setTimeout(() => {
@@ -876,6 +914,10 @@ function revealNextFinalAnswer() {
     setTimeout(() => {
       pctEl.textContent = pct + '%';
       pctEl.classList.remove('hidden');
+      // Play percentage stamp sound
+      SFX.percentage.currentTime = 0;
+      SFX.percentage.volume = userVolume * 0.3;
+      if (!isMuted && audioUnlocked) SFX.percentage.play().catch(() => {});
 
       const pointsEl = document.getElementById('final-popup-points');
       if (r.points > 0) {

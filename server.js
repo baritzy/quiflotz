@@ -207,7 +207,7 @@ io.on('connection', (socket) => {
     // Round 3: wait for ALL players before starting vote
     if (submitted >= activePlayers.length) {
       clearTimeout(room.timer);
-      showSplashThenDo(room, 'כולם ענו! בואו נראה מה הצבעתם', 3000, () => startFinalVoting(room));
+      showSplashThenDo(room, 'כולם ענו! בואו נראה מה הצבעתם', 'lets-see-votes', 4000, () => startFinalVoting(room));
     }
   });
 
@@ -402,7 +402,7 @@ function skipToMatchups(room) {
 function beginMatchupSequence(room) {
   room.currentMatchupIndex = 0;
   // Show "let's see" splash before first matchup (all sub-rounds)
-  showSplashThenDo(room, 'בואו נראה מה הצבעתם!', 2500, () => startNextMatchup(room));
+  showSplashThenDo(room, 'בואו נראה מה הצבעתם!', 'lets-see-votes', 4000, () => startNextMatchup(room));
 }
 
 function startNextMatchup(room) {
