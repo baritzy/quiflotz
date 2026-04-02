@@ -401,7 +401,8 @@ function skipToMatchups(room) {
 
 function beginMatchupSequence(room) {
   room.currentMatchupIndex = 0;
-  startNextMatchup(room);
+  // Show "let's see" splash before first matchup (all sub-rounds)
+  showSplashThenDo(room, 'בואו נראה מה הצבעתם!', 2500, () => startNextMatchup(room));
 }
 
 function startNextMatchup(room) {

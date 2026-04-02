@@ -41,7 +41,7 @@
 
 /* Host screens: scale up all rem-based sizes for TV/laptop viewing */
 html:has(.host-body) {
-  font-size: 22px;
+  font-size: 25px;
 }
 
 * {
@@ -1395,12 +1395,13 @@ body {
   background: linear-gradient(145deg, var(--dark-purple), var(--purple));
   border: 3px solid var(--cyan);
   border-radius: var(--radius);
-  padding: 35px 30px;
+  padding: 40px 35px;
   text-align: center;
-  min-height: 130px;
+  height: 210px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .matchup-answer.pop-in {
@@ -1416,8 +1417,8 @@ body {
 }
 
 .matchup-vs {
-  width: 100px;
-  height: 100px;
+  width: 115px;
+  height: 115px;
   background: url('/assets/img/vs-badge.png') center/contain no-repeat;
   font-size: 0;
   flex-shrink: 0;
@@ -1429,11 +1430,11 @@ body {
 
 .matchup-result-arena {
   display: flex;
-  gap: 30px;
+  gap: 35px;
   align-items: flex-start;
   justify-content: center;
   margin: 15px auto;
-  max-width: 900px;
+  max-width: 1035px;
 }
 
 .mr-side {
@@ -1464,12 +1465,13 @@ body {
   background: linear-gradient(145deg, var(--dark-purple), var(--purple));
   border: 3px solid var(--cyan);
   border-radius: var(--radius);
-  padding: 30px 25px;
-  min-height: 100px;
+  padding: 35px 30px;
+  height: 185px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  overflow: hidden;
 }
 
 .mr-side.winner .mr-card {
@@ -1732,7 +1734,6 @@ body {
   justify-content: center;
   gap: 8px;
   margin-top: -5px;
-  padding-left: 60px; /* offset for visual interest */
 }
 
 .score-block {
@@ -1740,6 +1741,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 195px;
   animation: blockSlideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
@@ -1748,12 +1750,24 @@ body {
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
-.score-block-large {
-  width: 180px;
-}
-
-.score-block-small {
-  width: 140px;
+.score-block-rank {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 36px;
+  height: 36px;
+  background: var(--purple);
+  border: 3px solid var(--yellow);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--yellow);
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 /* Giant translucent rank number behind the character */
@@ -1772,11 +1786,6 @@ body {
   user-select: none;
 }
 
-.score-block-small .score-block-rank-bg {
-  font-size: 5rem;
-  top: -4px;
-}
-
 .score-block-character {
   position: relative;
   z-index: 2;
@@ -1784,15 +1793,10 @@ body {
 }
 
 .score-block-avatar {
-  width: 95px;
-  height: 95px;
+  width: 110px;
+  height: 110px;
   object-fit: contain;
   filter: drop-shadow(0 5px 12px rgba(0,0,0,0.5));
-}
-
-.score-block-small .score-block-avatar {
-  width: 70px;
-  height: 70px;
 }
 
 .score-block-name {
@@ -1811,10 +1815,6 @@ body {
   margin-top: 4px;
 }
 
-.score-block-small .score-block-name {
-  font-size: 0.8rem;
-}
-
 .score-block-points {
   position: relative;
   z-index: 2;
@@ -1824,10 +1824,6 @@ body {
   color: var(--yellow);
   text-shadow: 0 3px 10px rgba(0,0,0,0.5), 2px 2px 0 var(--dark-purple);
   margin-top: 0;
-}
-
-.score-block-small .score-block-points {
-  font-size: 1.2rem;
 }
 
 /* ============================================
@@ -2271,9 +2267,9 @@ body {
 
 .writing-prompt-area {
   position: absolute;
-  top: 50%;
+  top: 18%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   z-index: 6;
   width: 80%;
   max-width: 700px;
@@ -2444,13 +2440,13 @@ body {
 }
 
 .voter-avatar-icon-lg {
-  width: 78px;
-  height: 78px;
+  width: 90px;
+  height: 90px;
 }
 
 .voter-char-img {
-  width: 78px;
-  height: 78px;
+  width: 90px;
+  height: 90px;
   object-fit: contain;
   animation: voterIdle 2s ease-in-out infinite;
   animation-delay: inherit;
@@ -2717,17 +2713,17 @@ body {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  max-height: 95px;
+  max-height: 110px;
 }
 
 .circle-character .avatar-img {
-  width: 65px;
-  height: 65px;
+  width: 75px;
+  height: 75px;
 }
 
 .floor-avatar-character .avatar-img {
-  width: 120px;
-  height: 120px;
+  width: 138px;
+  height: 138px;
 }
 
 .avatar-img-sm {
@@ -2737,9 +2733,9 @@ body {
 }
 
 .winner-img {
-  width: 300px;
+  width: 345px;
   height: auto;
-  max-height: 170px;
+  max-height: 195px;
   object-fit: contain;
 }
 

@@ -210,10 +210,13 @@ class GameEngine {
     const multiplied1 = p1Votes * room.multiplier;
     const multiplied2 = p2Votes * room.multiplier;
 
-    // Check for Quiflotz (100% of votes)
+    // Check for Quiflotz — ALL eligible voters must have voted, and all for one side
     const totalVoters = matchup.votes.size;
-    const p1Quiflotz = totalVoters > 0 && p2Votes === 0 && p1Votes > 0;
-    const p2Quiflotz = totalVoters > 0 && p1Votes === 0 && p2Votes > 0;
+    const eligibleVoters = Array.from(room.players.values())
+      .filter(p => p.connected && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
+    const allVoted = totalVoters >= eligibleVoters && eligibleVoters > 0;
+    const p1Quiflotz = allVoted && p2Votes === 0 && p1Votes > 0;
+    const p2Quiflotz = allVoted && p1Votes === 0 && p2Votes > 0;
 
     // If Quiflotz, double the already-multiplied points
     const final1 = p1Quiflotz ? multiplied1 * 2 : multiplied1;
@@ -336,15 +339,17 @@ class GameEngine {
       }
     });
 
-    // Check for Quiflotz (one answer got ALL votes)
+    // Check for Quiflotz — ALL eligible voters must have voted, and all votes go to one answer
     const totalVoters = room.finalVotes.size;
+    const eligibleVoters = Array.from(room.players.values()).filter(p => p.connected).length;
+    const allVoted = totalVoters >= eligibleVoters && eligibleVoters > 1;
     const answersWithVotes = Array.from(voteCounts.values()).filter(v => v > 0).length;
 
     // Build results sorted by votes
     const results = answers.map(a => {
       const rawVotes = voteCounts.get(a.playerId) || 0;
       const points = rawVotes * room.multiplier;
-      const isQuiflotz = totalVoters > 1 && answersWithVotes === 1 && rawVotes > 0;
+      const isQuiflotz = allVoted && answersWithVotes === 1 && rawVotes > 0;
       const finalPoints = isQuiflotz ? points * 2 : points;
 
       // Award points

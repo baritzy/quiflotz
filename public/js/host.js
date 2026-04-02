@@ -65,6 +65,7 @@ const SFX = {
   scoreCount: new Audio('/assets/SFX-score-count.mp3'),
   swooshIn: new Audio('/assets/SFX-swoosh-in.mp3'),
   swooshOut: new Audio('/assets/SFX-swoosh-out.mp3'),
+  pop: new Audio('/assets/SFX-pop.mp3'),
 };
 
 const ALL_AUDIO = [
@@ -166,6 +167,12 @@ function playSwooshOut() {
   SFX.swooshOut.currentTime = 0;
   SFX.swooshOut.volume = userVolume * 0.25;
   if (!isMuted && audioUnlocked) SFX.swooshOut.play().catch(() => {});
+}
+
+function playPopSFX() {
+  SFX.pop.currentTime = 0;
+  SFX.pop.volume = userVolume * 0.3;
+  if (!isMuted && audioUnlocked) SFX.pop.play().catch(() => {});
 }
 
 /**
@@ -557,6 +564,11 @@ socket.on('matchup-show', (data) => {
   document.getElementById('matchup-vote-count').textContent = '0';
   document.getElementById('matchup-a1').className = 'matchup-answer left pop-in';
   document.getElementById('matchup-a2').className = 'matchup-answer right pop-in';
+  // Auto-shrink text for long answers
+  setTimeout(() => {
+    autoShrinkText(document.getElementById('matchup-a1-text'), 32);
+    autoShrinkText(document.getElementById('matchup-a2-text'), 32);
+  }, 50);
   // Resume round music if not already playing (in case it was stopped)
   if (!currentMusic || currentMusic.paused) playMusic(getRoundMusic());
   if (!data.autoResolve && data.voteTime > 0) startCircleTimer('matchup-timer', data.voteTime);
@@ -579,6 +591,11 @@ socket.on('matchup-result', ({ result, hasQuiflotz }) => {
   // Set answers on cards
   document.getElementById('mr-answer1').textContent = isDQ1 ? '💨 פסול!' : result.player1.answer;
   document.getElementById('mr-answer2').textContent = isDQ2 ? '💨 פסול!' : result.player2.answer;
+  // Auto-shrink long answers
+  setTimeout(() => {
+    autoShrinkText(document.getElementById('mr-answer1'), 35);
+    autoShrinkText(document.getElementById('mr-answer2'), 35);
+  }, 50);
   document.getElementById('mr-player1').textContent = result.player1.name;
   document.getElementById('mr-player2').textContent = result.player2.name;
   document.getElementById('mr-points1').textContent = '+0';
@@ -684,6 +701,7 @@ function popVotersIn(containerId, voters) {
   voterElements.forEach((v, i) => {
     setTimeout(() => {
       el.insertAdjacentHTML('beforeend', v.html);
+      playPopSFX();
     }, i * 120);
   });
 }
@@ -706,7 +724,10 @@ function popVotersInFinal(container, voters) {
   }).filter(Boolean);
 
   voterElements.forEach((html, i) => {
-    setTimeout(() => container.insertAdjacentHTML('beforeend', html), i * 120);
+    setTimeout(() => {
+      container.insertAdjacentHTML('beforeend', html);
+      playPopSFX();
+    }, i * 120);
   });
 }
 
@@ -855,7 +876,6 @@ function revealNextFinalAnswer() {
     setTimeout(() => {
       pctEl.textContent = pct + '%';
       pctEl.classList.remove('hidden');
-      pctEl.classList.add('pop-in');
 
       const pointsEl = document.getElementById('final-popup-points');
       if (r.points > 0) {
@@ -951,14 +971,25 @@ socket.on('error-msg', ({ message }) => alert(message));
 // ============================================================
 function renderScoreboard(containerId, scores) {
   const el = document.getElementById(containerId);
-  const topRow = scores.slice(0, 4);
-  const bottomRow = scores.slice(4);
+  const total = scores.length;
+
+  // Split into balanced rows — no single player alone in a row
+  let topRow, bottomRow;
+  if (total <= 4) {
+    topRow = scores;
+    bottomRow = [];
+  } else {
+    const topCount = Math.ceil(total / 2);
+    topRow = scores.slice(0, topCount);
+    bottomRow = scores.slice(topCount);
+  }
+
   let html = '<div class="score-grid"><div class="score-row-top">';
   topRow.forEach((s, i) => { html += renderScoreBlock(s, i, i * 0.15); });
   html += '</div>';
   if (bottomRow.length > 0) {
     html += '<div class="score-row-bottom">';
-    bottomRow.forEach((s, i) => { html += renderScoreBlock(s, i + 4, (i + 4) * 0.15); });
+    bottomRow.forEach((s, i) => { html += renderScoreBlock(s, topRow.length + i, (topRow.length + i) * 0.15); });
     html += '</div>';
   }
   html += '</div>';
@@ -976,9 +1007,8 @@ function renderScoreboard(containerId, scores) {
 function renderScoreBlock(s, rankIndex, delay) {
   const rank = rankIndex + 1;
   const avatar = AVATARS[getPlayerAvatarIndex(s.id)];
-  const isTopRow = rankIndex < 4;
-  const blockSize = isTopRow ? 'large' : 'small';
-  return `<div class="score-block score-block-${blockSize}" style="animation-delay: ${delay}s">
+  return `<div class="score-block" style="animation-delay: ${delay}s">
+    <div class="score-block-rank">${rank}</div>
     <div class="score-block-rank-bg">${rank}</div>
     <div class="score-block-character"><img src="${avatar.img}" alt="" class="score-block-avatar breathing"></div>
     <div class="score-block-name">${esc(s.name)}</div>
@@ -1033,6 +1063,18 @@ function animateScoreCount(element, targetValue, duration, prefix, suffix) {
     }
   }
   requestAnimationFrame(tick);
+}
+
+function autoShrinkText(element, maxFontSize) {
+  if (!element) return;
+  const parent = element.parentElement;
+  if (!parent) return;
+  let size = maxFontSize || 32;
+  element.style.fontSize = size + 'px';
+  while (element.scrollHeight > parent.clientHeight - 10 && size > 14) {
+    size -= 2;
+    element.style.fontSize = size + 'px';
+  }
 }
 
 function esc(text) {
