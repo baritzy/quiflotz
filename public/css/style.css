@@ -41,7 +41,7 @@
 
 /* Host screens: scale up all rem-based sizes for TV/laptop viewing */
 html:has(.host-body) {
-  font-size: 18px;
+  font-size: 22px;
 }
 
 * {
@@ -1507,18 +1507,18 @@ body {
 
 .mr-pct-circle {
   position: absolute;
-  bottom: -14px;
-  right: -14px;
+  bottom: -20px;
+  right: -20px;
   background: var(--purple);
-  border: 3px solid var(--mint);
+  border: 4px solid var(--mint);
   border-radius: 50%;
-  width: 64px;
-  height: 64px;
+  width: 110px;
+  height: 110px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: var(--neon-green);
   transform: rotate(-20deg);
@@ -1695,17 +1695,17 @@ body {
 
 .scoreboard-title {
   font-family: var(--font-display);
-  font-size: 2.5rem;
+  font-size: 2rem;
   color: var(--yellow);
   text-shadow: 3px 3px 0 var(--dark-purple), 0 0 30px rgba(255, 215, 0, 0.3);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   text-align: center;
 }
 
 .scoreboard-sub {
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: var(--text-dim);
-  margin-bottom: 20px;
+  margin-bottom: 8px;
 }
 
 /* ============================================
@@ -1715,17 +1715,24 @@ body {
 .score-grid {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-width: 1000px;
-  margin: 10px auto;
-  padding: 0 20px;
+  gap: 0;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 15px;
 }
 
-.score-row-top, .score-row-bottom {
+.score-row-top {
   display: flex;
   justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.score-row-bottom {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: -5px;
+  padding-left: 60px; /* offset for visual interest */
 }
 
 .score-block {
@@ -1742,23 +1749,23 @@ body {
 }
 
 .score-block-large {
-  width: 200px;
+  width: 180px;
 }
 
 .score-block-small {
-  width: 155px;
+  width: 140px;
 }
 
 /* Giant translucent rank number behind the character */
 .score-block-rank-bg {
   position: absolute;
-  top: -10px;
+  top: -8px;
   left: 50%;
   transform: translateX(-50%);
   font-family: var(--font-display);
-  font-size: 8rem;
+  font-size: 7rem;
   font-weight: 900;
-  color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.12);
   line-height: 1;
   z-index: 0;
   pointer-events: none;
@@ -1766,61 +1773,61 @@ body {
 }
 
 .score-block-small .score-block-rank-bg {
-  font-size: 6rem;
-  top: -5px;
+  font-size: 5rem;
+  top: -4px;
 }
 
 .score-block-character {
   position: relative;
   z-index: 2;
-  margin-top: 15px;
+  margin-top: 10px;
 }
 
 .score-block-avatar {
-  width: 110px;
-  height: 110px;
+  width: 95px;
+  height: 95px;
   object-fit: contain;
-  filter: drop-shadow(0 6px 15px rgba(0,0,0,0.5));
+  filter: drop-shadow(0 5px 12px rgba(0,0,0,0.5));
 }
 
 .score-block-small .score-block-avatar {
-  width: 80px;
-  height: 80px;
+  width: 70px;
+  height: 70px;
 }
 
 .score-block-name {
   position: relative;
   z-index: 2;
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--cream);
   text-transform: uppercase;
-  max-width: 160px;
+  max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .score-block-small .score-block-name {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .score-block-points {
   position: relative;
   z-index: 2;
   font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: 1.7rem;
   font-weight: 900;
   color: var(--yellow);
   text-shadow: 0 3px 10px rgba(0,0,0,0.5), 2px 2px 0 var(--dark-purple);
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .score-block-small .score-block-points {
-  font-size: 1.4rem;
+  font-size: 1.2rem;
 }
 
 /* ============================================
@@ -2380,7 +2387,7 @@ body {
 /* Bare prompt text — no speech bubble, just big text */
 .prompt-text-bare {
   font-family: var(--font-display);
-  font-size: 3.55rem; /* compensate for 18px base — keep same pixel size */
+  font-size: 2.9rem; /* compensate for 22px base — keep same pixel size */
   font-weight: 700;
   line-height: 1.3;
   color: var(--cream);
@@ -2598,18 +2605,18 @@ body {
 
 .final-grid-pct {
   position: absolute;
-  bottom: -8px;
-  right: -8px;
+  bottom: -12px;
+  right: -12px;
   background: var(--purple);
-  border: 2px solid var(--mint);
+  border: 3px solid var(--mint);
   border-radius: 50%;
-  width: 44px;
-  height: 44px;
+  width: 70px;
+  height: 70px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 0.85rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--neon-green);
   transform: rotate(-20deg);
@@ -2669,18 +2676,18 @@ body {
 
 .final-popup-pct-circle {
   position: absolute;
-  bottom: -18px;
-  right: -18px;
+  bottom: -25px;
+  right: -25px;
   background: var(--purple);
-  border: 3px solid var(--mint);
+  border: 4px solid var(--mint);
   border-radius: 50%;
-  width: 72px;
-  height: 72px;
+  width: 120px;
+  height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 1.3rem;
+  font-size: 2rem;
   font-weight: 700;
   color: var(--neon-green);
   transform: rotate(-20deg);

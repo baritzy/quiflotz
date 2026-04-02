@@ -28,7 +28,7 @@ class GameEngine {
       settings: {
         writeTime: 90,
         matchupVoteTime: 15,
-        finalVoteTime: 15,
+        finalVoteTime: 30,
         maxPlayers: 8
       }
     };
