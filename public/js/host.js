@@ -431,12 +431,18 @@ function updateLobby(players, spectatorCount) {
     const player = players[i];
     if (player) {
       const avatar = AVATARS[getPlayerAvatarIndex(player.id)];
+      const wasEmpty = !charEl.querySelector('img');
       charEl.innerHTML = `<img src="${avatar.img}" alt="${avatar.name}" class="avatar-img">`;
       charEl.style.display = 'block';
       labelEl.style.display = 'none';
       nameEl.textContent = player.name;
       slot.classList.add('occupied');
       slot.classList.toggle('disconnected', !player.connected);
+      // GSAP: pop in new character
+      if (wasEmpty) {
+        gsap.fromTo(slot, { scale: 0, rotation: -15 },
+          { scale: 1, rotation: 0, duration: 0.6, ease: 'elastic.out(1, 0.5)' });
+      }
     } else {
       charEl.textContent = ''; charEl.style.display = 'none';
       labelEl.style.display = 'block'; nameEl.textContent = '';
@@ -509,9 +515,12 @@ socket.on('player-finished-writing', ({ playerId, timeRemaining }) => {
   const el = document.getElementById(`floor-avatar-${playerId}`);
   if (!el) return;
   const jumpPercent = (timeRemaining / currentWriteTime) * 85;
-  el.style.transform = `translateY(-${jumpPercent}vh)`;
   el.classList.add('finished');
   el.classList.remove('breathing-slow');
+  // GSAP: bounce jump up
+  gsap.to(el, { y: `-${jumpPercent}vh`, duration: 1.2, ease: 'bounce.out' });
+  // Celebration wiggle
+  gsap.to(el, { rotation: 5, duration: 0.15, yoyo: true, repeat: 5, delay: 1.2 });
 });
 
 socket.on('writing-progress', ({ submitted, total }) => {
@@ -522,8 +531,14 @@ socket.on('writing-progress', ({ submitted, total }) => {
 // SPLASH EVENTS — with narrator audio
 // ============================================================
 socket.on('show-splash', ({ text, type, duration, waitForNarrator }) => {
-  document.getElementById('splash-text-content').textContent = text;
+  const splashEl = document.getElementById('splash-text-content');
+  splashEl.textContent = text;
   showScreen('splash-text');
+  // GSAP: splash text entrance
+  gsap.fromTo(splashEl, { scale: 0.3, opacity: 0, y: 40 },
+    { scale: 1, opacity: 1, y: 0, duration: 0.6, ease: 'back.out(1.7)' });
+  // Gentle float after entrance
+  gsap.to(splashEl, { y: -8, duration: 1.5, ease: 'power1.inOut', yoyo: true, repeat: -1, delay: 0.6 });
 
   // Round intro splashes and scoreboard splashes = stop music, narrator only
   const stopTypes = ['pre-game', 'round-1-start', 'round-2-start', 'round-3-start', 'round-4-start',
@@ -592,13 +607,20 @@ socket.on('matchup-show', (data) => {
   document.getElementById('matchup-a1-text').textContent = data.answer1;
   document.getElementById('matchup-a2-text').textContent = data.answer2;
   document.getElementById('matchup-vote-count').textContent = '0';
-  document.getElementById('matchup-a1').className = 'matchup-answer left pop-in';
-  document.getElementById('matchup-a2').className = 'matchup-answer right pop-in';
+  const a1El = document.getElementById('matchup-a1');
+  const a2El = document.getElementById('matchup-a2');
+  a1El.className = 'matchup-answer left';
+  a2El.className = 'matchup-answer right';
   // Auto-shrink text for long answers
   setTimeout(() => {
     autoShrinkText(document.getElementById('matchup-a1-text'), 32);
     autoShrinkText(document.getElementById('matchup-a2-text'), 32);
   }, 50);
+  // GSAP: answers slide in from sides with elastic bounce
+  gsap.fromTo(a1El, { x: -200, scale: 0.5, opacity: 0, rotation: -8 },
+    { x: 0, scale: 1, opacity: 1, rotation: 0, duration: 0.7, ease: 'back.out(1.7)' });
+  gsap.fromTo(a2El, { x: 200, scale: 0.5, opacity: 0, rotation: 8 },
+    { x: 0, scale: 1, opacity: 1, rotation: 0, duration: 0.7, ease: 'back.out(1.7)', delay: 0.15 });
   // Resume round music if not already playing (in case it was stopped)
   if (!currentMusic || currentMusic.paused) playMusic(getRoundMusic());
   if (!data.autoResolve && data.voteTime > 0) startCircleTimer('matchup-timer', data.voteTime);
@@ -648,15 +670,35 @@ socket.on('matchup-result', ({ result, hasQuiflotz }) => {
 
   // Quiflotz: show overlay + audio FIRST, then reveal results
   if (hasQuiflotz && !hasNoShow) {
-    // Play narrator + show overlay
     playNarrator(NARRATOR.quiflotz);
     const ov = document.getElementById('quiflotz-overlay');
+    const banner = ov.querySelector('.quiflotz-text');
+    const sub = ov.querySelector('.quiflotz-sub');
     ov.classList.remove('hidden');
-    setTimeout(() => {
-      ov.classList.add('hidden');
-      // After quiflotz animation ends → start the result reveal
-      startMatchupRevealAnimation(result, isDQ1, isDQ2);
-    }, 3500);
+    ov.style.opacity = '1';
+
+    // GSAP timeline for quiflotz celebration
+    const qTl = gsap.timeline();
+    // Flash background green→dark
+    qTl.fromTo(ov, { backgroundColor: 'rgba(57, 255, 20, 0.5)' },
+      { backgroundColor: 'rgba(0, 0, 0, 0.9)', duration: 0.3 });
+    // Banner: dramatic zoom in with spin and overshoot
+    qTl.fromTo(banner, { scale: 0, rotation: -25, opacity: 0 },
+      { scale: 1, rotation: 0, opacity: 1, duration: 0.7, ease: 'elastic.out(1, 0.5)' }, 0.1);
+    // Banner continuous pulse
+    qTl.to(banner, { scale: 1.08, duration: 0.4, ease: 'power1.inOut', yoyo: true, repeat: 4 }, '+=0.1');
+    // Shake
+    qTl.to(banner, { x: -6, duration: 0.05, yoyo: true, repeat: 7 }, '<');
+    // Sub text slides up
+    qTl.fromTo(sub, { y: 30, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.4, ease: 'back.out(2)' }, '-=1.5');
+    // Fade out
+    qTl.to(ov, { opacity: 0, duration: 0.5, ease: 'power2.in',
+      onComplete: () => {
+        ov.classList.add('hidden');
+        startMatchupRevealAnimation(result, isDQ1, isDQ2);
+      }
+    }, '+=0.3');
   } else {
     if (hasNoShow) playNarrator(NARRATOR.noShow);
     // No quiflotz — start reveal directly
@@ -674,53 +716,58 @@ function startMatchupRevealAnimation(result, isDQ1, isDQ2) {
   if (result.player1.quiflotz) left.classList.add('quiflotz-glow');
   if (result.player2.quiflotz) right.classList.add('quiflotz-glow');
 
-  // Step 1: Zoom-in animation (5%)
-  left.classList.add('zoom-in');
-  right.classList.add('zoom-in');
+  // GSAP timeline for the entire reveal sequence
+  const tl = gsap.timeline();
 
-  // Step 2: After 0.5s — voter avatars pop in one by one (rapid)
-  setTimeout(() => {
+  // Step 1: Cards zoom in with bounce
+  tl.fromTo([left, right], { scale: 0.85, opacity: 0.5 },
+    { scale: 1, opacity: 1, duration: 0.6, ease: 'back.out(1.4)', stagger: 0.1 });
+
+  // Step 2: Voter avatars pop in
+  tl.call(() => {
     popVotersIn('mr-voters1', result.player1.voters);
     popVotersIn('mr-voters2', result.player2.voters);
-  }, 600);
+  }, null, '+=0.2');
 
-  // Step 3: After 2s — percentage circles appear
-  setTimeout(() => {
+  // Step 3: Percentage circles slam in
+  tl.call(() => {
     const pct1 = document.getElementById('mr-pct1');
     const pct2 = document.getElementById('mr-pct2');
     if (!isDQ1) {
       pct1.textContent = result.player1.percentage + '%';
       pct1.classList.remove('hidden');
-      pct1.classList.add('pop-in');
+      gsap.fromTo(pct1, { scale: 0, rotation: -30 },
+        { scale: 1, rotation: -20, duration: 0.5, ease: 'elastic.out(1, 0.4)' });
     }
     if (!isDQ2) {
       pct2.textContent = result.player2.percentage + '%';
       pct2.classList.remove('hidden');
-      pct2.classList.add('pop-in');
+      gsap.fromTo(pct2, { scale: 0, rotation: -30 },
+        { scale: 1, rotation: -20, duration: 0.5, ease: 'elastic.out(1, 0.4)', delay: 0.1 });
     }
-    // Play percentage stamp sound
+    // Percentage stamp sound
     if (!isDQ1 || !isDQ2) {
       SFX.percentage.currentTime = 0;
       SFX.percentage.volume = userVolume * 0.3;
       if (!isMuted && audioUnlocked) SFX.percentage.play().catch(() => {});
     }
-  }, 2200);
+  }, null, '+=1.4');
 
-  // Step 4: After 2.8s — score counting animation
-  setTimeout(() => {
+  // Step 4: Score count
+  tl.call(() => {
     if (result.player1.points > 0) {
       animateScoreCount(document.getElementById('mr-points1'), result.player1.points, 700, '+');
     }
     if (result.player2.points > 0) {
       animateScoreCount(document.getElementById('mr-points2'), result.player2.points, 700, '+');
     }
-  }, 2800);
+  }, null, '+=0.5');
 }
 
 function popVotersIn(containerId, voters) {
   const el = document.getElementById(containerId);
   if (!el || !voters || voters.length === 0) return;
-  el.innerHTML = ''; // Clear any previous voters to prevent duplicates
+  el.innerHTML = '';
   const shownIds = new Set();
   const voterElements = voters.map((voter) => {
     const voterId = typeof voter === 'object' ? voter.id : null;
@@ -728,18 +775,20 @@ function popVotersIn(containerId, voters) {
     if (voterId && shownIds.has(voterId)) return null;
     if (voterId) shownIds.add(voterId);
     const avatar = AVATARS[voterId ? getPlayerAvatarIndex(voterId) : 0];
-    return { html: `<div class="voter-avatar voter-avatar-lg pop-voter">
+    return { html: `<div class="voter-avatar voter-avatar-lg">
       <div class="voter-avatar-icon-lg"><img src="${avatar.img}" class="voter-char-img"></div>
       <div class="voter-avatar-name-lg">${esc(voterName)}</div>
     </div>`, name: voterName };
   }).filter(Boolean);
 
-  // Pop them in one by one, rapidly (120ms apart)
   voterElements.forEach((v, i) => {
     setTimeout(() => {
       el.insertAdjacentHTML('beforeend', v.html);
+      const added = el.lastElementChild;
+      gsap.fromTo(added, { scale: 0, y: -40, rotation: -15 },
+        { scale: 1, y: 0, rotation: 0, duration: 0.4, ease: 'back.out(2.5)' });
       playPopSFX();
-    }, i * 120);
+    }, i * 150);
   });
 }
 
@@ -763,8 +812,11 @@ function popVotersInFinal(container, voters) {
   voterElements.forEach((html, i) => {
     setTimeout(() => {
       container.insertAdjacentHTML('beforeend', html);
+      const added = container.lastElementChild;
+      gsap.fromTo(added, { scale: 0, y: -40, rotation: -15 },
+        { scale: 1, y: 0, rotation: 0, duration: 0.4, ease: 'back.out(2.5)' });
       playPopSFX();
-    }, i * 120);
+    }, i * 150);
   });
 }
 
@@ -851,6 +903,11 @@ socket.on('final-round-result', ({ prompt, results }) => {
       </div>`;
     }).join('');
 
+    // GSAP: stagger grid cards entrance
+    const gridCards = grid.querySelectorAll('.final-grid-card');
+    gsap.fromTo(gridCards, { scale: 0.5, opacity: 0, y: 30 },
+      { scale: 1, opacity: 0.7, y: 0, duration: 0.5, ease: 'back.out(1.4)', stagger: 0.08 });
+
     // Hide overlay
     document.getElementById('final-popup-overlay').classList.add('hidden');
 
@@ -890,7 +947,10 @@ function revealNextFinalAnswer() {
   const overlay = document.getElementById('final-popup-overlay');
   const card = document.getElementById('final-popup-card');
   overlay.classList.remove('hidden');
-  card.className = 'final-popup-card pop-in' + (isLast ? ' winner-card' : '');
+  card.className = 'final-popup-card' + (isLast ? ' winner-card' : '');
+  // GSAP: card flies in from bottom with bounce
+  gsap.fromTo(card, { y: 300, scale: 0.3, opacity: 0, rotation: 5 },
+    { y: 0, scale: 1, opacity: 1, rotation: 0, duration: 0.7, ease: 'back.out(1.7)' });
 
   document.getElementById('final-popup-answer').textContent = r.text;
   document.getElementById('final-popup-player').textContent = r.playerName;
@@ -914,6 +974,9 @@ function revealNextFinalAnswer() {
     setTimeout(() => {
       pctEl.textContent = pct + '%';
       pctEl.classList.remove('hidden');
+      // GSAP: percentage slams in with elastic
+      gsap.fromTo(pctEl, { scale: 0, rotation: -40 },
+        { scale: 1, rotation: -20, duration: 0.5, ease: 'elastic.out(1, 0.4)' });
       // Play percentage stamp sound
       SFX.percentage.currentTime = 0;
       SFX.percentage.volume = userVolume * 0.3;
@@ -980,13 +1043,23 @@ socket.on('round-complete', ({ scores, winner }) => {
       playMusic(MUSIC.credits);
 
       const avatar = AVATARS[getPlayerAvatarIndex(winner.id)];
-      document.getElementById('winner-character-big').innerHTML = `<img src="${avatar.img}" alt="">`;
+      const charEl = document.getElementById('winner-character-big');
+      charEl.innerHTML = `<img src="${avatar.img}" alt="">`;
       document.getElementById('winner-name-big').textContent = winner.name;
       const winScoreEl = document.getElementById('winner-score-big');
       winScoreEl.textContent = '0 נקודות';
-      setTimeout(() => {
+
+      // GSAP: winner celebration timeline
+      const winTl = gsap.timeline();
+      winTl.fromTo(charEl, { scale: 0, rotation: -20 },
+        { scale: 1, rotation: 0, duration: 0.8, ease: 'elastic.out(1, 0.5)' });
+      winTl.fromTo(document.getElementById('winner-name-big'),
+        { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'back.out(2)' }, '-=0.3');
+      winTl.call(() => {
         animateScoreCount(winScoreEl, winner.score, 1200, '', ' נקודות');
-      }, 500);
+      }, null, '+=0.2');
+      // Continuous gentle bounce on character
+      winTl.to(charEl, { y: -10, duration: 0.8, ease: 'power1.inOut', yoyo: true, repeat: -1 }, '+=0.5');
       document.getElementById('credits-scroll').innerHTML = CREDITS_HTML;
     }, 3000);
   }
@@ -1037,13 +1110,18 @@ function renderScoreboard(containerId, scores) {
   html += '</div>';
   el.innerHTML = html;
 
-  // Animate score counting after a brief delay for slide-in animation
-  setTimeout(() => {
-    el.querySelectorAll('.score-block-points[data-score]').forEach((pointsEl, i) => {
-      const target = parseInt(pointsEl.dataset.score) || 0;
-      setTimeout(() => animateScoreCount(pointsEl, target, 900), i * 200);
+  // GSAP: stagger score blocks bouncing up
+  const blocks = el.querySelectorAll('.score-block');
+  gsap.fromTo(blocks, { y: 80, scale: 0.6, opacity: 0 },
+    { y: 0, scale: 1, opacity: 1, duration: 0.6, ease: 'back.out(1.7)',
+      stagger: 0.12, onComplete: () => {
+        // After all blocks land, count up scores
+        el.querySelectorAll('.score-block-points[data-score]').forEach((pointsEl, i) => {
+          const target = parseInt(pointsEl.dataset.score) || 0;
+          setTimeout(() => animateScoreCount(pointsEl, target, 900), i * 200);
+        });
+      }
     });
-  }, 500);
 }
 
 function renderScoreBlock(s, rankIndex, delay) {
