@@ -31,6 +31,14 @@ function getPlayerAvatarIndex(playerId) {
   return idx;
 }
 
+// Rebuild avatar map from current player list to prevent stale/duplicate assignments
+function rebuildAvatarMap(players) {
+  playerAvatarMap = new Map();
+  players.forEach((p, i) => {
+    playerAvatarMap.set(p.id, i % 8);
+  });
+}
+
 // ============================================================
 // SOUND SYSTEM — all music, narration, SFX
 // ============================================================
@@ -454,7 +462,7 @@ socket.on('player-left', ({ players, spectatorCount, spectators }) => updateLobb
 function updateLobby(players, spectatorCount, spectators) {
   document.getElementById('player-count').textContent = players.length;
   previousPlayerIds = new Set(players.map(p => p.id));
-  players.forEach(p => getPlayerAvatarIndex(p.id));
+  rebuildAvatarMap(players);
   const slots = document.querySelectorAll('.circle-slot');
   slots.forEach((slot, i) => {
     const charEl = slot.querySelector('.circle-character');
