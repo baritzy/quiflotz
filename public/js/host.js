@@ -64,6 +64,7 @@ const NARRATOR = {
   pointsTable3: [new Audio('/assets/Narrator-Points-Table-3.mp3')],
   quiflotz: [new Audio('/assets/Narrator-Quiflotz-Announcment.mp3')],
   winner: [new Audio('/assets/Narrator-Winner.mp3')],
+  allVoted: [new Audio('/assets/Narrator-All-Voted.mp3')],
 };
 const SFX = {
   drumRolls: new Audio('/assets/SFX-drum-rolls.mp3'),
@@ -631,6 +632,8 @@ socket.on('show-splash', ({ text, type, duration, waitForNarrator }) => {
   } else if (type === 'lets-see-votes') {
     duckMusic();
     narratorPromise = playSFX(SFX.timeIsUp).then(() => unduckMusic());
+  } else if (type === 'all-voted') {
+    narratorPromise = playNarrator(NARRATOR.allVoted);
   }
 
   // If narrated/SFX splash — wait for audio to finish, then tell server

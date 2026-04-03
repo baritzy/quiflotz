@@ -300,7 +300,7 @@ io.on('connection', (socket) => {
     // Round 3: wait for ALL players before starting vote
     if (submitted >= activePlayers.length) {
       clearTimeout(room.timer);
-      showSplashThenDo(room, 'כולם ענו! בואו נראה מה כתבתם', 'lets-see-votes', 4000, () => startFinalVoting(room));
+      showSplashThenDo(room, 'כולם ענו! בואו נראה מה כתבתם', 'all-voted', 4000, () => startFinalVoting(room));
     }
   });
 
@@ -408,7 +408,7 @@ function showSplashThenDo(room, text, type, duration, callback) {
   // Narrated splash types — host will signal when narrator finishes
   const narratedTypes = ['pre-game', 'round-1-start', 'round-2-start', 'round-3-start', 'round-4-start',
                          'scoreboard-1', 'scoreboard-2', 'scoreboard-3',
-                         'lets-see-votes', 'time-is-up'];
+                         'lets-see-votes', 'time-is-up', 'all-voted'];
   const isNarrated = type && narratedTypes.includes(type);
 
   io.to(room.code).emit('show-splash', { text, type, duration, waitForNarrator: isNarrated });
@@ -491,13 +491,12 @@ function startSubRound(room, subRoundNum) {
 // Called when all answers submitted early
 function skipToMatchups(room) {
   clearTimeout(room.timer);
-  showSplashThenDo(room, 'כולם ענו! יאללה...', 2000, () => beginMatchupSequence(room));
+  showSplashThenDo(room, 'כולם ענו! בואו נראה מה כתבתם', 'all-voted', 4000, () => beginMatchupSequence(room));
 }
 
 function beginMatchupSequence(room) {
   room.currentMatchupIndex = 0;
-  // Show "let's see" splash before first matchup (all sub-rounds)
-  showSplashThenDo(room, 'בואו נראה מה כתבתם!', 'lets-see-votes', 4000, () => startNextMatchup(room));
+  startNextMatchup(room);
 }
 
 function startNextMatchup(room) {
@@ -566,6 +565,7 @@ function startMatchupVoting(room) {
   const eligibleVoters = Array.from(room.players.values())
     .filter(p => p.connected && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
   matchup.eligibleVoters = eligibleVoters;
+  console.log(`Matchup ${matchup.index}: ${matchup.player1.name} vs ${matchup.player2.name}, eligible voters: ${eligibleVoters}`);
 
   const data = {
     index: matchup.index, total: room.matchups.length,
@@ -582,13 +582,16 @@ function startMatchupVoting(room) {
     io.to(id).emit('matchup-vote', { ...data, isMyMatchup: matchup.player1.id === id || matchup.player2.id === id });
   });
 
+  // Single timeout — no nested setTimeout to avoid double-fire
   room.timer = setTimeout(() => {
-    setTimeout(() => showMatchupResult(room), 1500);
-  }, room.settings.matchupVoteTime * 1000);
+    showMatchupResult(room);
+  }, (room.settings.matchupVoteTime + 1.5) * 1000);
 }
 
 function showMatchupResult(room) {
   clearTimeout(room.timer);
+  // Guard: prevent double calls
+  if (room.phase === 'matchup-result') return;
   room.phase = 'matchup-result';
   const result = engine.resolveMatchup(room);
   if (!result) return;
@@ -618,6 +621,9 @@ function showMatchupResult(room) {
 
 function advanceAfterMatchup(room) {
   clearTimeout(room.timer);
+  // Guard: only advance from result phase
+  if (room.phase !== 'matchup-result') return;
+  room.phase = 'advancing'; // Prevent double calls
   if (engine.nextMatchup(room)) {
     startNextMatchup(room);
   } else {
@@ -656,6 +662,7 @@ function startFinalVoting(room) {
 
 function showFinalResult(room) {
   clearTimeout(room.timer);
+  if (room.phase === 'final-result') return; // Guard against double calls
   room.phase = 'final-result';
   const results = engine.resolveFinalRound(room);
 
