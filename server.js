@@ -246,8 +246,8 @@ io.on('connection', (socket) => {
 
     engine.submitMatchupVote(room, socket.id, choice);
 
-    // Count votes
-    const eligible = Array.from(room.players.values())
+    // Use stored eligible count (set when voting started) to avoid race conditions
+    const eligible = matchup.eligibleVoters || Array.from(room.players.values())
       .filter(p => p.connected && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
 
     io.to(room.hostId).emit('matchup-vote-progress', {
@@ -310,7 +310,7 @@ io.on('connection', (socket) => {
 
     engine.submitFinalVotes(room, socket.id, votes);
 
-    const eligible = Array.from(room.players.values()).filter(p => p.connected).length;
+    const eligible = room.finalEligibleVoters || Array.from(room.players.values()).filter(p => p.connected).length;
     io.to(room.hostId).emit('final-vote-progress', {
       count: room.finalVotes.size,
       total: eligible
@@ -407,7 +407,8 @@ function showSplashThenDo(room, text, type, duration, callback) {
 
   // Narrated splash types — host will signal when narrator finishes
   const narratedTypes = ['pre-game', 'round-1-start', 'round-2-start', 'round-3-start', 'round-4-start',
-                         'scoreboard-1', 'scoreboard-2', 'scoreboard-3'];
+                         'scoreboard-1', 'scoreboard-2', 'scoreboard-3',
+                         'lets-see-votes', 'time-is-up'];
   const isNarrated = type && narratedTypes.includes(type);
 
   io.to(room.code).emit('show-splash', { text, type, duration, waitForNarrator: isNarrated });
@@ -561,6 +562,11 @@ function startMatchupVoting(room) {
     return;
   }
 
+  // Calculate and store eligible voters ONCE when voting starts
+  const eligibleVoters = Array.from(room.players.values())
+    .filter(p => p.connected && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
+  matchup.eligibleVoters = eligibleVoters;
+
   const data = {
     index: matchup.index, total: room.matchups.length,
     promptText: matchup.prompt.text,
@@ -624,6 +630,9 @@ function startFinalVoting(room) {
   room.phase = 'final-vote';
   const answers = Array.from(room.finalAnswers.values());
   const shuffled = answers.sort(() => Math.random() - 0.5);
+
+  // Store eligible voter count once
+  room.finalEligibleVoters = Array.from(room.players.values()).filter(p => p.connected).length;
 
   const hostData = {
     prompt: room.finalPrompt,

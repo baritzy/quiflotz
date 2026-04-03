@@ -627,16 +627,16 @@ socket.on('show-splash', ({ text, type, duration, waitForNarrator }) => {
     narratorPromise = playNarrator(NARRATOR.pointsTable3);
   } else if (type === 'time-is-up') {
     duckMusic();
-    playSFX(SFX.timeIsUp).then(() => unduckMusic());
+    narratorPromise = playSFX(SFX.timeIsUp).then(() => unduckMusic());
   } else if (type === 'lets-see-votes') {
     duckMusic();
-    playSFX(SFX.timeIsUp).then(() => unduckMusic());
+    narratorPromise = playSFX(SFX.timeIsUp).then(() => unduckMusic());
   }
 
-  // If narrated splash — wait for narrator to finish, then tell server
+  // If narrated/SFX splash — wait for audio to finish, then tell server
   if (waitForNarrator && narratorPromise) {
     narratorPromise.then(() => {
-      // Small buffer after narrator ends
+      // Small buffer after audio ends
       setTimeout(() => socket.emit('splash-done'), 500);
     });
   }
