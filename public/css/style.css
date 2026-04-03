@@ -2081,8 +2081,8 @@ body {
 
 .slots-circle {
   position: relative;
-  width: 360px;
-  height: 360px;
+  width: 420px;
+  height: 420px;
 }
 
 .circle-slot {
@@ -2090,8 +2090,8 @@ body {
   width: 85px;
   height: 105px;
   /* Position each slot in a circle using --angle */
-  left: calc(50% - 42px + cos(var(--angle)) * 135px);
-  top: calc(50% - 52px + sin(var(--angle)) * 135px);
+  left: calc(50% - 42px + cos(var(--angle)) * 160px);
+  top: calc(50% - 52px + sin(var(--angle)) * 160px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2146,19 +2146,21 @@ body {
 
 .circle-name {
   font-family: var(--font-display);
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--cream);
-  margin-top: 4px;
+  margin-top: 2px;
   text-align: center;
-  max-width: 100px;
+  max-width: 90px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: rgba(0,0,0,0.5);
-  padding: 2px 8px;
+  background: rgba(0,0,0,0.6);
+  padding: 1px 6px;
   border-radius: 4px;
   min-height: 0;
+  position: relative;
+  z-index: 5;
 }
 
 .circle-name:empty {
