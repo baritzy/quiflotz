@@ -151,7 +151,7 @@ class GameEngine {
     if (!matchup) return;
 
     const eligible = Array.from(room.players.values())
-      .filter(p => p.connected && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
+      .filter(p => p.connected && !p.isSpectator && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
     const basePoints = eligible * 100 * room.multiplier;
 
     if (noAnswer1 && !noAnswer2) {

@@ -246,7 +246,10 @@ io.on('connection', (socket) => {
 
     // [BUG #2] Use stored eligible count ONLY (no fallback recalculation)
     const eligible = matchup.eligibleVoters;
-    if (!eligible) return; // Safety: voting hasn't been initialized yet
+    if (!eligible) {
+      console.warn(`Vote rejected: eligibleVoters not set for matchup ${matchup.index}`);
+      return;
+    }
 
     io.to(room.hostId).emit('matchup-vote-progress', {
       count: matchup.votes.size,
@@ -308,7 +311,7 @@ io.on('connection', (socket) => {
 
     engine.submitFinalVotes(room, socket.id, votes);
 
-    const eligible = room.finalEligibleVoters || Array.from(room.players.values()).filter(p => p.connected).length;
+    const eligible = room.finalEligibleVoters || Array.from(room.players.values()).filter(p => p.connected && !p.isSpectator).length;
     io.to(room.hostId).emit('final-vote-progress', {
       count: room.finalVotes.size,
       total: eligible
