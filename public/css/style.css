@@ -1439,13 +1439,12 @@ body {
 
 .mr-voters {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-wrap: nowrap;
+  gap: 4px;
   justify-content: center;
-  height: 120px;
-  align-content: flex-end;
+  align-items: flex-end;
+  min-height: 90px;
   margin-bottom: 8px;
-  overflow: hidden;
 }
 
 .mr-card {
@@ -2643,8 +2642,8 @@ body {
 
 .final-popup-voters {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  flex-wrap: nowrap;
+  gap: 6px;
   justify-content: center;
   margin: 15px 0;
 }

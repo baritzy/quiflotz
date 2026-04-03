@@ -769,21 +769,32 @@ function popVotersIn(containerId, voters) {
   if (!el || !voters || voters.length === 0) return;
   el.innerHTML = '';
   const shownIds = new Set();
-  const voterElements = voters.map((voter) => {
+  const uniqueVoters = voters.map((voter) => {
     const voterId = typeof voter === 'object' ? voter.id : null;
     const voterName = typeof voter === 'object' ? voter.name : voter.replace(/ \(x\d+\)$/, '');
     if (voterId && shownIds.has(voterId)) return null;
     if (voterId) shownIds.add(voterId);
-    const avatar = AVATARS[voterId ? getPlayerAvatarIndex(voterId) : 0];
-    return { html: `<div class="voter-avatar voter-avatar-lg">
-      <div class="voter-avatar-icon-lg"><img src="${avatar.img}" class="voter-char-img"></div>
-      <div class="voter-avatar-name-lg">${esc(voterName)}</div>
-    </div>`, name: voterName };
+    return { voterId, voterName };
   }).filter(Boolean);
 
-  voterElements.forEach((v, i) => {
+  // Scale down avatars when there are many voters
+  const count = uniqueVoters.length;
+  let imgSize, fontSize, gap;
+  if (count <= 3) { imgSize = 90; fontSize = 0.9; gap = 4; }
+  else if (count <= 5) { imgSize = 65; fontSize = 0.75; gap = 3; }
+  else { imgSize = 50; fontSize = 0.65; gap = 2; }
+  el.style.gap = gap + 'px';
+
+  uniqueVoters.forEach((v, i) => {
     setTimeout(() => {
-      el.insertAdjacentHTML('beforeend', v.html);
+      const avatar = AVATARS[v.voterId ? getPlayerAvatarIndex(v.voterId) : 0];
+      const html = `<div class="voter-avatar voter-avatar-lg">
+        <div class="voter-avatar-icon-lg" style="width:${imgSize}px;height:${imgSize}px">
+          <img src="${avatar.img}" class="voter-char-img" style="width:${imgSize}px;height:${imgSize}px">
+        </div>
+        <div class="voter-avatar-name-lg" style="font-size:${fontSize}rem">${esc(v.voterName)}</div>
+      </div>`;
+      el.insertAdjacentHTML('beforeend', html);
       const added = el.lastElementChild;
       gsap.fromTo(added, { scale: 0, y: -40, rotation: -15 },
         { scale: 1, y: 0, rotation: 0, duration: 0.4, ease: 'back.out(2.5)' });
@@ -795,22 +806,32 @@ function popVotersIn(containerId, voters) {
 function popVotersInFinal(container, voters) {
   if (!container || !voters || voters.length === 0) return;
   const shownIds = new Set();
-  const voterElements = voters.map((voter) => {
+  const uniqueVoters = voters.map((voter) => {
     const voterId = typeof voter === 'object' ? voter.id : null;
     const voterName = typeof voter === 'object' ? voter.name : voter;
     const count = typeof voter === 'object' ? voter.count : 1;
-    const countBadge = count > 1 ? `<span class="voter-count">x${count}</span>` : '';
     if (voterId && shownIds.has(voterId)) return null;
     if (voterId) shownIds.add(voterId);
-    const avatar = AVATARS[voterId ? getPlayerAvatarIndex(voterId) : 0];
-    return `<div class="voter-avatar voter-avatar-lg pop-voter">
-      <div class="voter-avatar-icon-lg"><img src="${avatar.img}" class="voter-char-img"></div>
-      <div class="voter-avatar-name-lg">${esc(voterName)}${countBadge}</div>
-    </div>`;
+    return { voterId, voterName, count };
   }).filter(Boolean);
 
-  voterElements.forEach((html, i) => {
+  // Scale down for many voters
+  const total = uniqueVoters.length;
+  let imgSize, fontSize;
+  if (total <= 3) { imgSize = 90; fontSize = 0.9; }
+  else if (total <= 5) { imgSize = 65; fontSize = 0.75; }
+  else { imgSize = 50; fontSize = 0.65; }
+
+  uniqueVoters.forEach((v, i) => {
     setTimeout(() => {
+      const avatar = AVATARS[v.voterId ? getPlayerAvatarIndex(v.voterId) : 0];
+      const countBadge = v.count > 1 ? `<span class="voter-count">x${v.count}</span>` : '';
+      const html = `<div class="voter-avatar voter-avatar-lg">
+        <div class="voter-avatar-icon-lg" style="width:${imgSize}px;height:${imgSize}px">
+          <img src="${avatar.img}" class="voter-char-img" style="width:${imgSize}px;height:${imgSize}px">
+        </div>
+        <div class="voter-avatar-name-lg" style="font-size:${fontSize}rem">${esc(v.voterName)}${countBadge}</div>
+      </div>`;
       container.insertAdjacentHTML('beforeend', html);
       const added = container.lastElementChild;
       gsap.fromTo(added, { scale: 0, y: -40, rotation: -15 },
