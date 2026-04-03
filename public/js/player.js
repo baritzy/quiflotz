@@ -5,16 +5,27 @@ const socket = io({
   reconnectionDelayMax: 5000,
   timeout: 60000
 });
-let myName = '';
+let myName = sessionStorage.getItem('q_name') || '';
 let isSpectator = false;
-let myRoomCode = '';
+let myRoomCode = sessionStorage.getItem('q_room') || '';
+let myPersistentId = sessionStorage.getItem('q_pid') || ('p_' + Math.random().toString(36).substr(2, 9));
+sessionStorage.setItem('q_pid', myPersistentId);
 
-// Auto-rejoin room after reconnection
+// Auto-rejoin room after reconnection or page refresh
 socket.on('connect', () => {
   if (myName && myRoomCode) {
-    socket.emit('join-room', { roomCode: myRoomCode, playerName: myName }, (res) => {
+    socket.emit('join-room', { roomCode: myRoomCode, playerName: myName, persistentId: myPersistentId }, (res) => {
       if (res.success) {
-        console.log('Rejoined room after reconnect');
+        isSpectator = res.isSpectator;
+        console.log(res.reconnected ? 'Reconnected to game' : 'Rejoined room');
+        document.getElementById('display-name').textContent = myName;
+        document.getElementById('waiting-role').textContent = isSpectator ? '👀 צופה — תוכל להצביע!' : '🎮 שחקן';
+        // If game is in progress, show waiting screen
+        if (res.gameState === 'playing') {
+          showScreen('between');
+        } else {
+          showScreen('waiting');
+        }
       }
     });
   }
@@ -45,10 +56,12 @@ function joinRoom() {
   if (!name) return showError('מה השם שלך?');
 
   myName = name;
-  socket.emit('join-room', { roomCode: code, playerName: name }, (res) => {
+  socket.emit('join-room', { roomCode: code, playerName: name, persistentId: myPersistentId }, (res) => {
     if (res.success) {
       isSpectator = res.isSpectator;
       myRoomCode = res.roomCode;
+      sessionStorage.setItem('q_name', myName);
+      sessionStorage.setItem('q_room', myRoomCode);
       document.getElementById('display-name').textContent = name;
       document.getElementById('waiting-role').textContent = isSpectator ? '👀 צופה — תוכל להצביע!' : '🎮 שחקן';
       showScreen('waiting');

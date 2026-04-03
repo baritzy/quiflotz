@@ -199,10 +199,10 @@ class GameEngine {
 
       if (choice === 1) {
         p1Votes += weight;
-        p1Voters.push({ id: voterId, name: voter.name });
+        p1Voters.push({ id: voterId, name: voter.name, isSpectator: voter.isSpectator });
       } else {
         p2Votes += weight;
-        p2Voters.push({ id: voterId, name: voter.name });
+        p2Voters.push({ id: voterId, name: voter.name, isSpectator: voter.isSpectator });
       }
     });
 
@@ -333,7 +333,7 @@ class GameEngine {
         if (count > 0 && voteCounts.has(answerId)) {
           voteCounts.set(answerId, (voteCounts.get(answerId) || 0) + count * weight);
           const names = voterNames.get(answerId) || [];
-          names.push({ id: voterId, name: voter.name, count });
+          names.push({ id: voterId, name: voter.name, count, isSpectator: voter.isSpectator });
           voterNames.set(answerId, names);
         }
       }

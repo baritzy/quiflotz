@@ -13,6 +13,7 @@ const AVATARS = [
   { name: 'ספריי', img: '/assets/img/characters/char-6.png' },
   { name: 'נקניקיה', img: '/assets/img/characters/char-7.png' },
 ];
+const SPECTATOR_AVATAR = { name: 'צופה', img: '/assets/img/characters/spectator.png' };
 
 let playerAvatarMap = new Map();
 
@@ -382,16 +383,47 @@ function showScreen(name) {
 // ============================================================
 // ROOM CREATION
 // ============================================================
-let currentRoomCode = '';
-socket.emit('create-room', (res) => {
-  if (res.success) {
-    currentRoomCode = res.roomCode;
-    document.getElementById('room-code').textContent = res.roomCode;
-    document.getElementById('persistent-room-code').textContent = res.roomCode;
-    const url = window.location.origin.replace(/^https?:\/\//, '');
-    document.getElementById('join-url').textContent = url;
-  }
-});
+let currentRoomCode = sessionStorage.getItem('q_host_room') || '';
+
+// Try to rejoin existing room first, or create new
+if (currentRoomCode) {
+  socket.emit('rejoin-host', { roomCode: currentRoomCode }, (res) => {
+    if (res.success) {
+      currentRoomCode = res.roomCode;
+      document.getElementById('room-code').textContent = res.roomCode;
+      document.getElementById('persistent-room-code').textContent = res.roomCode;
+      const url = window.location.origin.replace(/^https?:\/\//, '');
+      document.getElementById('join-url').textContent = url;
+      console.log('Host reconnected to room', res.roomCode);
+      // Restore lobby state
+      if (res.players) updateLobby(res.players, res.spectatorCount || 0);
+      // If game was in progress, show lobby (host can see current state)
+      if (res.gameState === 'playing') {
+        audioUnlocked = true;
+        showScreen('lobby');
+      }
+    } else {
+      // Room gone, create new
+      sessionStorage.removeItem('q_host_room');
+      createNewRoom();
+    }
+  });
+} else {
+  createNewRoom();
+}
+
+function createNewRoom() {
+  socket.emit('create-room', (res) => {
+    if (res.success) {
+      currentRoomCode = res.roomCode;
+      sessionStorage.setItem('q_host_room', res.roomCode);
+      document.getElementById('room-code').textContent = res.roomCode;
+      document.getElementById('persistent-room-code').textContent = res.roomCode;
+      const url = window.location.origin.replace(/^https?:\/\//, '');
+      document.getElementById('join-url').textContent = url;
+    }
+  });
+}
 
 document.getElementById('btn-persistent-restart').addEventListener('click', () => {
   if (confirm('להתחיל משחק חדש?')) socket.emit('restart-game');
@@ -402,7 +434,7 @@ document.getElementById('btn-persistent-restart').addEventListener('click', () =
 // ============================================================
 let previousPlayerIds = new Set();
 
-socket.on('player-joined', ({ players, spectatorCount }) => {
+socket.on('player-joined', ({ players, spectatorCount, spectators }) => {
   // Detect new player and play their character connection sound
   players.forEach(p => {
     if (!previousPlayerIds.has(p.id)) {
@@ -415,11 +447,11 @@ socket.on('player-joined', ({ players, spectatorCount }) => {
       }
     }
   });
-  updateLobby(players, spectatorCount);
+  updateLobby(players, spectatorCount, spectators);
 });
-socket.on('player-left', ({ players, spectatorCount }) => updateLobby(players, spectatorCount));
+socket.on('player-left', ({ players, spectatorCount, spectators }) => updateLobby(players, spectatorCount, spectators));
 
-function updateLobby(players, spectatorCount) {
+function updateLobby(players, spectatorCount, spectators) {
   document.getElementById('player-count').textContent = players.length;
   previousPlayerIds = new Set(players.map(p => p.id));
   players.forEach(p => getPlayerAvatarIndex(p.id));
@@ -453,6 +485,21 @@ function updateLobby(players, spectatorCount) {
   const info = document.getElementById('spectator-info');
   if (spectatorCount > 0) { info.style.display = 'block'; document.getElementById('spectator-count').textContent = spectatorCount; }
   else info.style.display = 'none';
+
+  // Show spectators above the circle
+  const bar = document.getElementById('spectator-bar');
+  const barList = document.getElementById('spectator-bar-list');
+  if (bar && barList && spectators && spectators.length > 0) {
+    bar.classList.remove('hidden');
+    barList.innerHTML = spectators.map(s => `
+      <div class="spectator-bar-item">
+        <img src="${SPECTATOR_AVATAR.img}" class="spectator-bar-avatar">
+        <div class="spectator-bar-name">${esc(s.name)}</div>
+      </div>
+    `).join('');
+  } else if (bar) {
+    bar.classList.add('hidden');
+  }
 }
 
 document.getElementById('btn-start').addEventListener('click', () => socket.emit('start-game'));
@@ -487,12 +534,18 @@ socket.on('final-round-start', ({ prompt, writeTime, players }) => {
   document.getElementById('write-multiplier').textContent = 'x3';
   document.getElementById('answer-progress').textContent = `0/${(players || []).length}`;
   document.getElementById('writing-status-text').textContent = '';
-  document.getElementById('answer-progress').parentElement.style.display = 'none'; // Hide counter when big prompt shown
-  document.getElementById('writing-prompt-area').style.display = 'block';
+  document.getElementById('answer-progress').parentElement.style.display = 'none';
+  const promptArea = document.getElementById('writing-prompt-area');
+  promptArea.style.display = 'block';
+  promptArea.classList.remove('as-title');
   document.getElementById('writing-prompt-text').textContent = prompt.text;
-  playMusic(MUSIC.round3); // Start round 3 music at writing phase
+  playMusic(MUSIC.round3);
   startCircleTimer('write-timer', writeTime, true);
   buildAvatarFloor(writingPlayers);
+  // After 3s (prompt read), move prompt up to title position so characters don't cover it
+  setTimeout(() => {
+    promptArea.classList.add('as-title');
+  }, 3000);
 });
 
 function buildAvatarFloor(players) {
@@ -565,9 +618,11 @@ socket.on('show-splash', ({ text, type, duration, waitForNarrator }) => {
   } else if (type === 'scoreboard-3') {
     narratorPromise = playNarrator(NARRATOR.pointsTable3);
   } else if (type === 'time-is-up') {
-    playSFX(SFX.timeIsUp);
+    duckMusic();
+    playSFX(SFX.timeIsUp).then(() => unduckMusic());
   } else if (type === 'lets-see-votes') {
-    playSFX(SFX.timeIsUp);
+    duckMusic();
+    playSFX(SFX.timeIsUp).then(() => unduckMusic());
   }
 
   // If narrated splash — wait for narrator to finish, then tell server
@@ -772,9 +827,10 @@ function popVotersIn(containerId, voters) {
   const uniqueVoters = voters.map((voter) => {
     const voterId = typeof voter === 'object' ? voter.id : null;
     const voterName = typeof voter === 'object' ? voter.name : voter.replace(/ \(x\d+\)$/, '');
+    const isSpec = typeof voter === 'object' ? voter.isSpectator : false;
     if (voterId && shownIds.has(voterId)) return null;
     if (voterId) shownIds.add(voterId);
-    return { voterId, voterName };
+    return { voterId, voterName, isSpectator: isSpec };
   }).filter(Boolean);
 
   // Scale down avatars when there are many voters
@@ -787,7 +843,7 @@ function popVotersIn(containerId, voters) {
 
   uniqueVoters.forEach((v, i) => {
     setTimeout(() => {
-      const avatar = AVATARS[v.voterId ? getPlayerAvatarIndex(v.voterId) : 0];
+      const avatar = v.isSpectator ? SPECTATOR_AVATAR : AVATARS[v.voterId ? getPlayerAvatarIndex(v.voterId) : 0];
       const html = `<div class="voter-avatar voter-avatar-lg">
         <div class="voter-avatar-icon-lg" style="width:${imgSize}px;height:${imgSize}px">
           <img src="${avatar.img}" class="voter-char-img" style="width:${imgSize}px;height:${imgSize}px">
@@ -810,9 +866,10 @@ function popVotersInFinal(container, voters) {
     const voterId = typeof voter === 'object' ? voter.id : null;
     const voterName = typeof voter === 'object' ? voter.name : voter;
     const count = typeof voter === 'object' ? voter.count : 1;
+    const isSpec = typeof voter === 'object' ? voter.isSpectator : false;
     if (voterId && shownIds.has(voterId)) return null;
     if (voterId) shownIds.add(voterId);
-    return { voterId, voterName, count };
+    return { voterId, voterName, count, isSpectator: isSpec };
   }).filter(Boolean);
 
   // Scale down for many voters
@@ -824,7 +881,7 @@ function popVotersInFinal(container, voters) {
 
   uniqueVoters.forEach((v, i) => {
     setTimeout(() => {
-      const avatar = AVATARS[v.voterId ? getPlayerAvatarIndex(v.voterId) : 0];
+      const avatar = v.isSpectator ? SPECTATOR_AVATAR : AVATARS[v.voterId ? getPlayerAvatarIndex(v.voterId) : 0];
       const countBadge = v.count > 1 ? `<span class="voter-count">x${v.count}</span>` : '';
       const html = `<div class="voter-avatar voter-avatar-lg">
         <div class="voter-avatar-icon-lg" style="width:${imgSize}px;height:${imgSize}px">
@@ -898,7 +955,8 @@ socket.on('final-round-result', ({ prompt, results }) => {
   // Show "בואו נראה מה הצבעתם" splash first
   document.getElementById('splash-text-content').textContent = 'בואו נראה מה הצבעתם!';
   showScreen('splash-text');
-  playSFX(SFX.timeIsUp);
+  duckMusic();
+  playSFX(SFX.timeIsUp).then(() => unduckMusic());
 
   // After 3s splash → show the results screen with reveal
   setTimeout(() => {
@@ -1051,11 +1109,13 @@ socket.on('round-complete', ({ scores, winner }) => {
   renderScoreboard('round-final-scores', scores);
 
   if (winner) {
-    // After 3s of scoreboard → pre-winner splash → winner screen
+    // After 2s → pre-winner splash → winner screen (tighter timing)
     setTimeout(async () => {
       showScreen('pre-winner');
       stopMusic();
-      await playNarrator(NARRATOR.winner);
+      playNarrator(NARRATOR.winner);
+      // Short gap then drum roll overlaps end of narrator
+      await new Promise(r => setTimeout(r, 1500));
       await playSFX(SFX.drumRolls);
 
       // Show winner
@@ -1082,7 +1142,7 @@ socket.on('round-complete', ({ scores, winner }) => {
       // Continuous gentle bounce on character
       winTl.to(charEl, { y: -10, duration: 0.8, ease: 'power1.inOut', yoyo: true, repeat: -1 }, '+=0.5');
       document.getElementById('credits-scroll').innerHTML = CREDITS_HTML;
-    }, 3000);
+    }, 2000);
   }
 });
 
@@ -1097,7 +1157,8 @@ socket.on('game-restarted', ({ players }) => {
   showScreen('lobby');
   playerAvatarMap = new Map();
   playMusic(MUSIC.lobby);
-  updateLobby(players, 0);
+  updateLobby(players, 0, []);
+  sessionStorage.setItem('q_host_room', currentRoomCode);
 });
 
 socket.on('error-msg', ({ message }) => alert(message));

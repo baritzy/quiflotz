@@ -2248,12 +2248,23 @@ body {
 
 .writing-prompt-area {
   position: absolute;
-  top: 18%;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
+  transform: translate(-50%, -50%);
+  z-index: 10;
   width: 80%;
   max-width: 700px;
+  transition: all 1s ease;
+}
+
+.writing-prompt-area.as-title {
+  top: 5%;
+  transform: translateX(-50%);
+  max-width: 90%;
+}
+
+.writing-prompt-area.as-title .writing-prompt-text {
+  font-size: 1.3rem;
 }
 
 /* ============================================
@@ -2265,7 +2276,7 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 100vh;
+  height: 80vh;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -2790,6 +2801,55 @@ body {
 
 .persistent-new-game:active {
   transform: scale(0.95);
+}
+
+/* ============================================
+   SPECTATOR BAR (above lobby circle)
+   ============================================ */
+
+.spectator-bar {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.spectator-bar-title {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  color: var(--yellow);
+  margin-bottom: 8px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.spectator-bar-list {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.spectator-bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.spectator-bar-avatar {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,0.4));
+}
+
+.spectator-bar-name {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--cream);
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ============================================

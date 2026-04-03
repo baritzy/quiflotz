@@ -56,16 +56,108 @@ io.on('connection', (socket) => {
     callback({ success: true, roomCode: code });
   });
 
-  socket.on('join-room', ({ roomCode, playerName }, callback) => {
+  // Host reconnection — rejoin existing room
+  socket.on('rejoin-host', ({ roomCode }, callback) => {
+    const code = roomCode.toUpperCase().trim();
+    const room = rooms.get(code);
+    if (!room) return callback({ success: false, error: 'החדר לא נמצא.' });
+    // Update host socket id
+    room.hostId = socket.id;
+    socket.join(code);
+    socket.roomCode = code;
+    socket.isHost = true;
+    console.log(`Host reconnected to room ${code}`);
+    callback({
+      success: true, roomCode: code,
+      gameState: room.state, phase: room.phase,
+      players: engine.getPlayerList(room),
+      spectatorCount: engine.getSpectators(room).length,
+      scores: engine.getScoreboard(room),
+      subRound: room.subRound
+    });
+  });
+
+  socket.on('join-room', ({ roomCode, playerName, persistentId }, callback) => {
     const code = roomCode.toUpperCase().trim();
     const room = rooms.get(code);
     if (!room) return callback({ success: false, error: 'החדר לא נמצא. בדוק את הקוד.' });
 
+    // Check if this is a reconnecting player (by persistentId or name)
+    let existingPlayer = null;
+    if (persistentId) {
+      for (const [id, p] of room.players) {
+        if (p.persistentId === persistentId) {
+          existingPlayer = { oldId: id, player: p };
+          break;
+        }
+      }
+    }
+    // Fallback: match by name if persistentId not found
+    if (!existingPlayer) {
+      for (const [id, p] of room.players) {
+        if (p.name === playerName.trim().substring(0, 20) && !p.connected) {
+          existingPlayer = { oldId: id, player: p };
+          break;
+        }
+      }
+    }
+
+    if (existingPlayer) {
+      // Reconnecting player — transfer to new socket id
+      const { oldId, player } = existingPlayer;
+      room.players.delete(oldId);
+      player.id = socket.id;
+      player.connected = true;
+      room.players.set(socket.id, player);
+
+      // Update references in matchups
+      room.matchups.forEach(m => {
+        if (m.player1.id === oldId) m.player1.id = socket.id;
+        if (m.player2.id === oldId) m.player2.id = socket.id;
+        if (m.votes.has(oldId)) {
+          const vote = m.votes.get(oldId);
+          m.votes.delete(oldId);
+          m.votes.set(socket.id, vote);
+        }
+      });
+      // Update finalAnswers/finalVotes references
+      if (room.finalAnswers.has(oldId)) {
+        const ans = room.finalAnswers.get(oldId);
+        ans.playerId = socket.id;
+        room.finalAnswers.delete(oldId);
+        room.finalAnswers.set(socket.id, ans);
+      }
+      if (room.finalVotes.has(oldId)) {
+        const votes = room.finalVotes.get(oldId);
+        room.finalVotes.delete(oldId);
+        room.finalVotes.set(socket.id, votes);
+      }
+
+      socket.join(code);
+      socket.roomCode = code;
+      socket.isHost = false;
+
+      callback({
+        success: true, isSpectator: player.isSpectator, roomCode: code,
+        gameState: room.state, phase: room.phase, reconnected: true
+      });
+
+      io.to(room.hostId).emit('player-joined', {
+        players: engine.getPlayerList(room),
+        spectatorCount: engine.getSpectators(room).length
+      });
+      console.log(`Player ${player.name} reconnected to room ${code}`);
+      return;
+    }
+
+    // New player
     const activeCount = engine.getActivePlayers(room).length;
     const isSpectator = activeCount >= 8 || room.state !== 'lobby';
+    const pid = persistentId || socket.id;
 
     const player = {
       id: socket.id,
+      persistentId: pid,
       name: playerName.trim().substring(0, 20),
       score: 0,
       isSpectator,
@@ -81,7 +173,8 @@ io.on('connection', (socket) => {
 
     io.to(room.hostId).emit('player-joined', {
       players: engine.getPlayerList(room),
-      spectatorCount: engine.getSpectators(room).length
+      spectatorCount: engine.getSpectators(room).length,
+      spectators: engine.getSpectators(room).map(s => ({ id: s.id, name: s.name }))
     });
   });
 
@@ -291,7 +384,8 @@ io.on('connection', (socket) => {
         io.to(room.hostId).emit('player-left', {
           playerName: player.name,
           players: engine.getPlayerList(room),
-          spectatorCount: engine.getSpectators(room).length
+          spectatorCount: engine.getSpectators(room).length,
+          spectators: engine.getSpectators(room).map(s => ({ id: s.id, name: s.name }))
         });
       }
     }
@@ -589,10 +683,10 @@ function showScoreboard(room) {
     }
   });
 
-  // Auto-advance after 7 seconds
+  // Auto-advance after 12 seconds (extra time to see scores)
   room.timer = setTimeout(() => {
     advanceToNextSubRound(room);
-  }, 7000);
+  }, 12000);
 }
 
 function advanceToNextSubRound(room) {
