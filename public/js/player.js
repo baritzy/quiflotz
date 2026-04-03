@@ -372,7 +372,14 @@ socket.on('matchup-pause', () => showScreen('between'));
 socket.on('matchup-prompt-reveal', () => showScreen('between'));
 
 socket.on('game-restarted', () => showScreen('waiting'));
-socket.on('host-left', () => { alert('ה-Host עזב 😢'); showScreen('join'); });
+socket.on('host-left', () => {
+  // [BUG #12] Clear session storage so player doesn't auto-rejoin dead room
+  sessionStorage.removeItem('q_name');
+  sessionStorage.removeItem('q_room');
+  sessionStorage.removeItem('q_pid');
+  alert('ה-Host עזב 😢');
+  showScreen('join');
+});
 
 function startCountdown(timerId, seconds) {
   clearInterval(writeTimerInterval);

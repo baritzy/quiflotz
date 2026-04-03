@@ -92,15 +92,8 @@ io.on('connection', (socket) => {
         }
       }
     }
-    // Fallback: match by name if persistentId not found
-    if (!existingPlayer) {
-      for (const [id, p] of room.players) {
-        if (p.name === playerName.trim().substring(0, 20) && !p.connected) {
-          existingPlayer = { oldId: id, player: p };
-          break;
-        }
-      }
-    }
+    // [BUG #19] Removed name-based fallback — it caused wrong player reconnection
+    // when two players had the same name. Only persistentId is used.
 
     if (existingPlayer) {
       // Reconnecting player — transfer to new socket id
@@ -151,6 +144,10 @@ io.on('connection', (socket) => {
     }
 
     // New player
+    // [BUG #16] Validate name
+    const trimmedName = playerName.trim().substring(0, 20);
+    if (!trimmedName) return callback({ success: false, error: 'מה השם שלך?' });
+
     const activeCount = engine.getActivePlayers(room).length;
     const isSpectator = activeCount >= 8 || room.state !== 'lobby';
     const pid = persistentId || socket.id;
@@ -158,7 +155,7 @@ io.on('connection', (socket) => {
     const player = {
       id: socket.id,
       persistentId: pid,
-      name: playerName.trim().substring(0, 20),
+      name: trimmedName,
       score: 0,
       isSpectator,
       connected: true
@@ -242,13 +239,14 @@ io.on('connection', (socket) => {
     if (room.phase !== 'matchup-vote' && room.phase !== 'matchup-result') return;
 
     const matchup = engine.getCurrentMatchup(room);
-    if (!matchup || matchup.result) return; // Already resolved, too late
+    // [BUG #21] Reject votes if already resolved or auto-resolving
+    if (!matchup || matchup.result || matchup.locked) return;
 
     engine.submitMatchupVote(room, socket.id, choice);
 
-    // Use stored eligible count (set when voting started) to avoid race conditions
-    const eligible = matchup.eligibleVoters || Array.from(room.players.values())
-      .filter(p => p.connected && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
+    // [BUG #2] Use stored eligible count ONLY (no fallback recalculation)
+    const eligible = matchup.eligibleVoters;
+    if (!eligible) return; // Safety: voting hasn't been initialized yet
 
     io.to(room.hostId).emit('matchup-vote-progress', {
       count: matchup.votes.size,
@@ -347,12 +345,12 @@ io.on('connection', (socket) => {
   socket.on('splash-done', () => {
     const room = rooms.get(socket.roomCode);
     if (!room || socket.id !== room.hostId) return;
-    if (room.splashCallback) {
-      clearTimeout(room.timer);
-      const cb = room.splashCallback;
-      room.splashCallback = null;
-      cb();
-    }
+    // [BUG #4] Guard: only process if we're actually in splash phase with a callback
+    if (room.phase !== 'splash' || !room.splashCallback) return;
+    clearTimeout(room.timer);
+    const cb = room.splashCallback;
+    room.splashCallback = null;
+    cb();
   });
 
   socket.on('restart-game', () => {
@@ -403,6 +401,16 @@ function showSplashThenDo(room, text, type, duration, callback) {
     duration = type;
     type = null;
   }
+
+  // [BUG #1] Clear any orphaned splash callback/timer before setting new one
+  clearTimeout(room.timer);
+  if (room.splashCallback) {
+    room.splashCallback = null;
+  }
+  if (room.promptRevealCallback) {
+    room.promptRevealCallback = null;
+  }
+
   room.phase = 'splash';
 
   // Narrated splash types — host will signal when narrator finishes
@@ -417,8 +425,10 @@ function showSplashThenDo(room, text, type, duration, callback) {
     // Wait for host to signal narrator finished (with fallback timeout)
     room.splashCallback = callback;
     room.timer = setTimeout(() => {
-      room.splashCallback = null;
-      callback();
+      if (room.splashCallback === callback) {
+        room.splashCallback = null;
+        callback();
+      }
     }, 20000); // 20s fallback safety
   } else {
     room.timer = setTimeout(callback, duration);
@@ -500,6 +510,7 @@ function beginMatchupSequence(room) {
 }
 
 function startNextMatchup(room) {
+  room._advancing = false; // Clear advance guard
   const matchup = engine.getCurrentMatchup(room);
   if (!matchup) {
     // All matchups done — show scoreboard with round-specific narrator
@@ -554,6 +565,7 @@ function startMatchupVoting(room) {
       if (!player.connected) return;
       io.to(id).emit('matchup-vote', { ...data, isMyMatchup: matchup.player1.id === id || matchup.player2.id === id });
     });
+    matchup.locked = true; // [BUG #21] Lock votes during auto-resolve
     room.timer = setTimeout(() => {
       engine.autoResolveMatchup(room, noAnswer1, noAnswer2);
       showMatchupResult(room);
@@ -561,9 +573,9 @@ function startMatchupVoting(room) {
     return;
   }
 
-  // Calculate and store eligible voters ONCE when voting starts
+  // [BUG #8] Calculate eligible voters ONCE, exclude spectators (they vote but don't block progress)
   const eligibleVoters = Array.from(room.players.values())
-    .filter(p => p.connected && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
+    .filter(p => p.connected && !p.isSpectator && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
   matchup.eligibleVoters = eligibleVoters;
   console.log(`Matchup ${matchup.index}: ${matchup.player1.name} vs ${matchup.player2.name}, eligible voters: ${eligibleVoters}`);
 
@@ -621,9 +633,10 @@ function showMatchupResult(room) {
 
 function advanceAfterMatchup(room) {
   clearTimeout(room.timer);
-  // Guard: only advance from result phase
-  if (room.phase !== 'matchup-result') return;
-  room.phase = 'advancing'; // Prevent double calls
+  // [BUG #3] Guard: only advance from result phase, use flag to prevent any double call
+  if (room.phase !== 'matchup-result' || room._advancing) return;
+  room._advancing = true;
+  room.phase = 'advancing';
   if (engine.nextMatchup(room)) {
     startNextMatchup(room);
   } else {
@@ -637,8 +650,8 @@ function startFinalVoting(room) {
   const answers = Array.from(room.finalAnswers.values());
   const shuffled = answers.sort(() => Math.random() - 0.5);
 
-  // Store eligible voter count once
-  room.finalEligibleVoters = Array.from(room.players.values()).filter(p => p.connected).length;
+  // [BUG #9] Store eligible voter count once — exclude spectators
+  room.finalEligibleVoters = Array.from(room.players.values()).filter(p => p.connected && !p.isSpectator).length;
 
   const hostData = {
     prompt: room.finalPrompt,
@@ -662,9 +675,11 @@ function startFinalVoting(room) {
 
 function showFinalResult(room) {
   clearTimeout(room.timer);
-  if (room.phase === 'final-result') return; // Guard against double calls
-  room.phase = 'final-result';
+  // [BUG #5] Guard: prevent double calls from timeout + vote-completion race
+  if (room.phase === 'final-result' || room.phase === 'final-resolving') return;
+  room.phase = 'final-resolving';
   const results = engine.resolveFinalRound(room);
+  room.phase = 'final-result';
 
   io.to(room.code).emit('final-round-result', {
     prompt: room.finalPrompt,

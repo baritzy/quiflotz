@@ -210,10 +210,10 @@ class GameEngine {
     const multiplied1 = p1Votes * room.multiplier;
     const multiplied2 = p2Votes * room.multiplier;
 
-    // Check for Quiflotz — ALL eligible voters must have voted, and all for one side
+    // [BUG #8] Check for Quiflotz — ALL eligible NON-SPECTATOR voters must have voted
     const totalVoters = matchup.votes.size;
     const eligibleVoters = Array.from(room.players.values())
-      .filter(p => p.connected && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
+      .filter(p => p.connected && !p.isSpectator && p.id !== matchup.player1.id && p.id !== matchup.player2.id).length;
     const allVoted = totalVoters >= eligibleVoters && eligibleVoters > 0;
     const p1Quiflotz = allVoted && p2Votes === 0 && p1Votes > 0;
     const p2Quiflotz = allVoted && p1Votes === 0 && p2Votes > 0;
@@ -339,9 +339,9 @@ class GameEngine {
       }
     });
 
-    // Check for Quiflotz — ALL eligible voters must have voted, and all votes go to one answer
+    // [BUG #9] Check for Quiflotz — ALL eligible NON-SPECTATOR voters must have voted
     const totalVoters = room.finalVotes.size;
-    const eligibleVoters = Array.from(room.players.values()).filter(p => p.connected).length;
+    const eligibleVoters = Array.from(room.players.values()).filter(p => p.connected && !p.isSpectator).length;
     const allVoted = totalVoters >= eligibleVoters && eligibleVoters > 1;
     const answersWithVotes = Array.from(voteCounts.values()).filter(v => v > 0).length;
 

@@ -94,7 +94,7 @@ const ALL_AUDIO = [
   ...Object.values(NARRATOR).flat(),
   ...Object.values(SFX).flat()
 ];
-ALL_AUDIO.forEach(a => { a.preload = 'auto'; if (!a.volume) a.volume = 0.3; });
+ALL_AUDIO.forEach(a => { a.preload = 'auto'; if (!a.volume) a.volume = 0.3; a.loop = false; }); // [BUG #18] Ensure no SFX loops
 
 let currentMusic = null;
 let currentNarrator = null;
@@ -150,14 +150,20 @@ function playNarrator(variants) {
 
   if (!isMuted && audioUnlocked) pick.play().catch(() => {});
 
+  // [BUG #7] Use per-call ID to prevent resolve race between overlapping narrators
+  if (!playNarrator._callId) playNarrator._callId = 0;
+  const callId = ++playNarrator._callId;
+
   return new Promise(resolve => {
     let resolved = false;
     const done = () => {
       if (resolved) return;
+      // Only resolve if this is still the active narrator call
+      if (playNarrator._callId !== callId) { resolve(); return; }
       resolved = true;
       narratorResolve = null;
       currentNarrator = null;
-      unduckMusic(); // Restore music volume
+      unduckMusic();
       resolve();
     };
     narratorResolve = done;
@@ -215,7 +221,8 @@ function playPromptAudio(audioPath) {
       resolve();
     };
     audio.onended = done;
-    setTimeout(done, 15000); // fallback
+    audio.onerror = done; // [BUG #14] Handle broken audio files
+    setTimeout(done, 20000); // fallback (increased for longer prompts)
   });
 }
 
@@ -700,6 +707,8 @@ socket.on('matchup-vote-progress', ({ count }) => {
 // MATCHUP RESULT — Side-by-side with animated reveal
 // ============================================================
 socket.on('matchup-result', ({ result, hasQuiflotz }) => {
+  // [BUG #17] Guard against null/invalid result
+  if (!result || !result.prompt) return;
   showScreen('matchup-result');
   document.getElementById('result-prompt').textContent = result.prompt.text;
 
