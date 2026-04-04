@@ -41,7 +41,7 @@
 
 /* Host screens: scale up all rem-based sizes for TV/laptop viewing */
 html:has(.host-body) {
-  font-size: 25px;
+  font-size: 22px;
 }
 
 * {
@@ -1788,7 +1788,7 @@ body {
   font-weight: 700;
   color: var(--cream);
   text-transform: uppercase;
-  max-width: 150px;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2151,7 +2151,7 @@ body {
   color: var(--cream);
   margin-top: 2px;
   text-align: center;
-  max-width: 90px;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2321,7 +2321,7 @@ body {
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--cream);
-  max-width: 80px;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2458,7 +2458,7 @@ body {
   font-weight: 700;
   color: var(--cream);
   text-align: center;
-  max-width: 90px;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2848,7 +2848,7 @@ body {
   font-size: 0.7rem;
   font-weight: 700;
   color: var(--cream);
-  max-width: 70px;
+  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

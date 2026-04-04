@@ -94,7 +94,9 @@ const ALL_AUDIO = [
   ...Object.values(NARRATOR).flat(),
   ...Object.values(SFX).flat()
 ];
-ALL_AUDIO.forEach(a => { a.preload = 'auto'; if (!a.volume) a.volume = 0.3; a.loop = false; }); // [BUG #18] Ensure no SFX loops
+ALL_AUDIO.forEach(a => { a.preload = 'auto'; if (!a.volume) a.volume = 0.3; }); // Preload all audio
+// Ensure SFX and narrators don't loop (music loop is set above in MUSIC init)
+[...Object.values(NARRATOR).flat(), ...Object.values(SFX).flat()].forEach(a => { a.loop = false; });
 
 let currentMusic = null;
 let currentNarrator = null;
@@ -428,8 +430,17 @@ if (currentRoomCode) {
   createNewRoom();
 }
 
+// Prompt history — remember which prompts were shown across sessions
+function getSeenPrompts() {
+  try { return JSON.parse(localStorage.getItem('q_seen_prompts') || '[]'); } catch { return []; }
+}
+function saveSeenPrompts(ids) {
+  try { localStorage.setItem('q_seen_prompts', JSON.stringify(ids)); } catch {}
+}
+
 function createNewRoom() {
-  socket.emit('create-room', (res) => {
+  const seenPrompts = getSeenPrompts();
+  socket.emit('create-room', { seenPrompts }, (res) => {
     if (res.success) {
       currentRoomCode = res.roomCode;
       sessionStorage.setItem('q_host_room', res.roomCode);
@@ -1123,13 +1134,18 @@ document.getElementById('btn-next-sub').addEventListener('click', () => socket.e
 // ============================================================
 // ROUND COMPLETE + WINNER
 // ============================================================
-socket.on('round-complete', ({ scores, winner }) => {
+socket.on('round-complete', ({ scores, winner, usedPromptIds }) => {
   stopMusic(); // Ensure no leftover music
-  showScreen('round-complete');
-  renderScoreboard('round-final-scores', scores);
+
+  // Save used prompts to localStorage for cross-session memory
+  if (usedPromptIds && usedPromptIds.length > 0) {
+    const prev = getSeenPrompts();
+    const merged = [...new Set([...prev, ...usedPromptIds])];
+    saveSeenPrompts(merged);
+  }
 
   if (winner) {
-    // After 2s → pre-winner splash → winner screen (tighter timing)
+    // Go straight to pre-winner (scoreboard was already shown)
     setTimeout(async () => {
       showScreen('pre-winner');
       stopMusic();

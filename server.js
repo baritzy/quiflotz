@@ -45,14 +45,26 @@ io.on('connection', (socket) => {
 
   // --- Room management ---
 
-  socket.on('create-room', (callback) => {
+  socket.on('create-room', (data, callback) => {
+    // Support both old format (callback only) and new format (data + callback)
+    if (typeof data === 'function') { callback = data; data = {}; }
     const code = generateRoomCode();
     const room = engine.createRoom(code, socket.id);
+    // Pre-populate used prompts from host's history (cross-session memory)
+    if (data && Array.isArray(data.seenPrompts)) {
+      const validIds = new Set(prompts.map(p => p.id));
+      const seen = data.seenPrompts.filter(id => validIds.has(id));
+      // Only use history if it doesn't exhaust all prompts (leave at least 20%)
+      if (seen.length < prompts.length * 0.8) {
+        seen.forEach(id => room.usedPromptIds.add(id));
+      }
+      // Otherwise start fresh — all prompts have been seen
+    }
     rooms.set(code, room);
     socket.join(code);
     socket.roomCode = code;
     socket.isHost = true;
-    console.log(`Room ${code} created`);
+    console.log(`Room ${code} created (${room.usedPromptIds.size} previously seen prompts excluded)`);
     callback({ success: true, roomCode: code });
   });
 
@@ -756,7 +768,8 @@ function showRoundComplete(room) {
   io.to(room.hostId).emit('round-complete', {
     mainRound: room.mainRound,
     scores,
-    winner
+    winner,
+    usedPromptIds: Array.from(room.usedPromptIds)
   });
 
   room.players.forEach((player, id) => {
