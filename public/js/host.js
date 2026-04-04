@@ -1149,12 +1149,10 @@ socket.on('round-complete', ({ scores, winner, usedPromptIds }) => {
     setTimeout(async () => {
       showScreen('pre-winner');
       stopMusic();
-      playNarrator(NARRATOR.winner);
-      // Short gap then drum roll overlaps end of narrator
-      await new Promise(r => setTimeout(r, 1500));
-      await playSFX(SFX.drumRolls);
+      await playNarrator(NARRATOR.winner); // Wait for "הוא...היא...הם..." to finish
+      await playSFX(SFX.drumRolls);        // Then drum roll
 
-      // Show winner
+      // Show winner immediately after drum roll
       showScreen('winner');
       playSFX(SFX.winnerSound);
       playMusic(MUSIC.credits);
