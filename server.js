@@ -661,31 +661,49 @@ function advanceAfterMatchup(room) {
 }
 
 function startFinalVoting(room) {
-  room.phase = 'final-vote';
+  room.phase = 'final-read'; // Reading phase — no voting yet
   const answers = Array.from(room.finalAnswers.values());
   const shuffled = answers.sort(() => Math.random() - 0.5);
 
   // [BUG #9] Store eligible voter count once — exclude spectators
   room.finalEligibleVoters = Array.from(room.players.values()).filter(p => p.connected && !p.isSpectator).length;
 
-  const hostData = {
+  const readTime = 7; // seconds to read answers before voting opens
+
+  // Send answers to host for display (read-only phase)
+  io.to(room.hostId).emit('final-voting-start', {
     prompt: room.finalPrompt,
     answers: shuffled.map(a => ({ id: a.playerId, text: a.text })),
-    voteTime: room.settings.finalVoteTime
-  };
-
-  io.to(room.hostId).emit('final-voting-start', hostData);
-
-  room.players.forEach((player, id) => {
-    if (!player.connected) return;
-    io.to(id).emit('final-vote-options', {
-      prompt: room.finalPrompt,
-      answers: shuffled.map(a => ({ id: a.playerId, text: a.text, isMine: a.playerId === id })),
-      voteTime: room.settings.finalVoteTime
-    });
+    voteTime: room.settings.finalVoteTime,
+    readTime
   });
 
-  room.timer = setTimeout(() => showFinalResult(room), room.settings.finalVoteTime * 1000);
+  // Tell players to look at screen during read phase
+  room.players.forEach((player, id) => {
+    if (player.connected && id !== room.hostId) {
+      io.to(id).emit('show-splash', { text: 'קראו את התשובות על המסך!' });
+    }
+  });
+
+  // After read time → open voting
+  room.timer = setTimeout(() => {
+    room.phase = 'final-vote';
+
+    // Signal host to show "time to vote" overlay
+    io.to(room.hostId).emit('final-vote-open');
+
+    // Now send vote options to players
+    room.players.forEach((player, id) => {
+      if (!player.connected) return;
+      io.to(id).emit('final-vote-options', {
+        prompt: room.finalPrompt,
+        answers: shuffled.map(a => ({ id: a.playerId, text: a.text, isMine: a.playerId === id })),
+        voteTime: room.settings.finalVoteTime
+      });
+    });
+
+    room.timer = setTimeout(() => showFinalResult(room), room.settings.finalVoteTime * 1000);
+  }, readTime * 1000);
 }
 
 function showFinalResult(room) {

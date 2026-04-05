@@ -65,6 +65,7 @@ const NARRATOR = {
   quiflotz: [new Audio('/assets/Narrator-Quiflotz-Announcment.mp3')],
   winner: [new Audio('/assets/Narrator-Winner.mp3')],
   allVoted: [new Audio('/assets/Narrator-All-Voted.mp3')],
+  aboutTime: [new Audio('/assets/Narrator-about-time.mp3')],
 };
 const SFX = {
   drumRolls: new Audio('/assets/SFX-drum-rolls.mp3'),
@@ -950,7 +951,7 @@ document.getElementById('btn-next-matchup').addEventListener('click', () => sock
 // ============================================================
 // FINAL ROUND VOTING — Show all answers as grid on host
 // ============================================================
-socket.on('final-voting-start', ({ prompt, answers, voteTime }) => {
+socket.on('final-voting-start', ({ prompt, answers, voteTime, readTime }) => {
   showScreen('final-voting');
   document.getElementById('final-voting-prompt').textContent = prompt.text;
   document.getElementById('final-voting-count').textContent = '0';
@@ -966,7 +967,26 @@ socket.on('final-voting-start', ({ prompt, answers, voteTime }) => {
   playMusic(MUSIC.round3);
   // Play prompt narration once
   if (prompt.audio) playPromptAudio(prompt.audio);
-  startCircleTimer('final-vote-timer', voteTime);
+  // Don't start timer yet — wait for final-vote-open signal after read phase
+});
+
+// After read phase: show "time to vote" overlay + start timer
+socket.on('final-vote-open', async () => {
+  // Show big overlay text on top of answers
+  const overlay = document.createElement('div');
+  overlay.id = 'vote-now-overlay';
+  overlay.innerHTML = '<div class="vote-now-text">הגיע הזמן לנקד!<br>לכו על זה!</div>';
+  document.querySelector('.screen.active').appendChild(overlay);
+
+  // Play narrator
+  await playNarrator(NARRATOR.aboutTime);
+
+  // Fade out overlay after narrator finishes
+  overlay.classList.add('fade-out');
+  setTimeout(() => overlay.remove(), 600);
+
+  // Now start the voting timer
+  startCircleTimer('final-vote-timer', 25);
 });
 
 socket.on('final-vote-progress', ({ count }) => {
