@@ -1,0 +1,18 @@
+name: Keep Warm
+
+# Pings the Render free dynamo every 10 minutes to prevent the 15-min idle sleep.
+# Cold start is ~22 seconds — kills UX for a real-time party game.
+# Cost: 6 pings/hour x 24 = 144 runs/day x ~10 sec = ~24 min/day = ~12 hr/month
+# (well under the 2000 min/month free tier).
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Quiflotz
+        run: curl -sf https://quiflotz.onrender.com/ > /dev/null
